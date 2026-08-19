@@ -1,15 +1,15 @@
 --[[
     ╔═══════════════════════════════════════════════════════════════════════════╗
-    ║                    CANDY ZONE EXECUTOR - FULL REWORK                      ║
-    ║                         Version 3.5.0 STABLE                              ║
-    ║                     Perfect Balance: 1500 Lines                           ║
+    ║                    CANDY ZONE EXECUTOR - MM2 EDITION                      ║
+    ║                      Version 0.1 Pre-Release                              ║
+    ║                         by mopsech                                        ║
     ╚═══════════════════════════════════════════════════════════════════════════╝
 ]]
 
 repeat task.wait() until game:IsLoaded()
 task.wait(0.5)
 
-print("🍬 [CANDY ZONE] Initialization started...")
+print("🍬 [CANDY ZONE MM2] Initialization started...")
 
 --// ════════════════════════════════════════════════════════════════════════
 --// SERVICES & VARIABLES
@@ -24,14 +24,15 @@ local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
 
 --// ════════════════════════════════════════════════════════════════════════
 --// CONFIGURATION
 --// ════════════════════════════════════════════════════════════════════════
 
 local Config = {
-    Version = "3.5.0",
+    Version = "0.1 Pre-Release",
+    Developer = "mopsech",
+    Discord = "discord.gg/3KjWyZ6uBu",
     
     -- Colors
     Color = {
@@ -64,11 +65,11 @@ local Config = {
         }
     },
     
-    -- Sizes
+    -- Sizes (75% of screen)
     Size = {
         TopBar = {Height = 32, Spacing = 8, Radius = 6},
-        Window = {Width = 820, Height = 520, Radius = 16},
-        Nav = {Width = 160, ButtonHeight = 42, Spacing = 8, Radius = 8},
+        Window = {Width = 615, Height = 390, Radius = 16}, -- 75% of 820x520
+        Nav = {Width = 140, ButtonHeight = 38, Spacing = 8, Radius = 8},
         Element = {Height = 32, Spacing = 10},
         Toggle = {Width = 42, Height = 20, DotSize = 16},
         Slider = {Height = 6, HandleSize = 14},
@@ -81,13 +82,20 @@ local Config = {
         Slow = 0.35,
     },
     
-    -- Game Names
-    Games = {
-        [142823291] = "MM2",
-        [2788229376] = "Da Hood",
-        [286090429] = "Arsenal",
-        [606849621] = "Jailbreak",
-        [920587237] = "Adopt Me",
+    -- Settings Storage
+    Settings = {
+        Keybinds = {
+            ToggleGUI = Enum.KeyCode.RightShift,
+            PanicKey = Enum.KeyCode.End,
+            Camlock = Enum.KeyCode.Q,
+            SilentAim = Enum.KeyCode.E,
+        },
+        
+        Colors = {
+            ForceField = Color3.fromRGB(0, 255, 255),
+            TargetESP = Color3.fromRGB(255, 0, 0),
+            AuraTrail = Color3.fromRGB(255, 255, 0),
+        }
     }
 }
 
@@ -171,7 +179,7 @@ function Util:Ripple(button)
 end
 
 function Util:GetGameName()
-    return Config.Games[game.PlaceId] or "Unknown"
+    return game.PlaceId == 142823291 and "MM2" or "MMV"
 end
 
 function Util:GetPlayerName()
@@ -251,7 +259,7 @@ local Snow = {
     particles = {},
     container = nil,
     active = false,
-    count = 150
+    count = 120
 }
 
 function Snow:Create(parent)
@@ -344,7 +352,7 @@ local GUI = {
     TopBar = {},
     Main = {
         IsOpen = false,
-        CurrentTab = "Home",
+        CurrentTab = "Visuals",
         Blur = nil,
         Window = nil,
         Nav = {},
@@ -355,12 +363,13 @@ local GUI = {
 function GUI:Initialize()
     print("🔨 [CANDY ZONE] Creating GUI...")
     
-    -- Create ScreenGui
+    -- Create ScreenGui with TopMost
     self.ScreenGui = Instance.new("ScreenGui")
-    self.ScreenGui.Name = "CandyZone_" .. HttpService:GenerateGUID(false):sub(1, 8)
+    self.ScreenGui.Name = "CandyZoneMM2_" .. HttpService:GenerateGUID(false):sub(1, 8)
     self.ScreenGui.ResetOnSpawn = false
     self.ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     self.ScreenGui.IgnoreGuiInset = true
+    self.ScreenGui.DisplayOrder = 999999999 -- TopMost
     
     if gethui then
         self.ScreenGui.Parent = gethui()
@@ -524,8 +533,8 @@ function GUI:CreateMainWindow()
     -- Content Area
     self:CreateContentArea()
     
-    -- Load Home Tab
-    self:LoadTab("Home")
+    -- Load Visuals Tab
+    self:LoadTab("Visuals")
     
     print("🪟 [CANDY ZONE] Main Window created")
 end
@@ -573,22 +582,22 @@ function GUI:CreateTitleBar()
     title.Position = UDim2.new(0, 20, 0, 0)
     title.BackgroundTransparency = 1
     title.Font = Enum.Font.GothamBold
-    title.Text = "CANDY ZONE"
+    title.Text = "CANDY ZONE MM2"
     title.TextColor3 = Config.Color.Text.Primary
-    title.TextSize = 16
+    title.TextSize = 14
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.ZIndex = 53
     title.Parent = bar
     
     -- Version
     local version = Instance.new("TextLabel")
-    version.Size = UDim2.new(0, 100, 1, 0)
-    version.Position = UDim2.new(0, 140, 0, 0)
+    version.Size = UDim2.new(0, 120, 1, 0)
+    version.Position = UDim2.new(0, 160, 0, 0)
     version.BackgroundTransparency = 1
     version.Font = Enum.Font.GothamBold
     version.Text = "v" .. Config.Version
     version.TextColor3 = Config.Color.Accent.Gray
-    version.TextSize = 10
+    version.TextSize = 9
     version.TextXAlignment = Enum.TextXAlignment.Left
     version.TextTransparency = 0.4
     version.ZIndex = 53
@@ -596,15 +605,15 @@ function GUI:CreateTitleBar()
     
     -- Close Button
     local close = Instance.new("TextButton")
-    close.Size = UDim2.new(0, 35, 0, 35)
-    close.Position = UDim2.new(1, -45, 0, 5)
+    close.Size = UDim2.new(0, 30, 0, 30)
+    close.Position = UDim2.new(1, -40, 0, 7)
     close.BackgroundColor3 = Config.Color.Background.Secondary
     close.BackgroundTransparency = 0.3
     close.BorderSizePixel = 0
     close.Font = Enum.Font.GothamBold
     close.Text = "X"
     close.TextColor3 = Config.Color.Text.Primary
-    close.TextSize = 16
+    close.TextSize = 14
     close.AutoButtonColor = false
     close.ZIndex = 54
     close.Parent = bar
@@ -646,7 +655,6 @@ function GUI:CreateNavigation()
     nav.Parent = self.Main.Window
     
     local tabs = {
-        {name = "Home", icon = "H"},
         {name = "Visuals", icon = "V"},
         {name = "Combat", icon = "C"},
         {name = "Rage", icon = "R"},
@@ -676,6 +684,7 @@ function GUI:CreateNavButton(name, icon, yPos, isActive)
     btn.BackgroundTransparency = 0.3
     btn.BorderSizePixel = 0
     btn.AutoButtonColor = false
+    btn.Text = "" -- NO TEXT ON BUTTON
     btn.ZIndex = 53
     
     Util:Corner(btn, Config.Size.Nav.Radius)
@@ -713,7 +722,7 @@ function GUI:CreateNavButton(name, icon, yPos, isActive)
     textLbl.Font = Enum.Font.GothamMedium
     textLbl.Text = name
     textLbl.TextColor3 = Config.Color.Text.Primary
-    textLbl.TextSize = 12
+    textLbl.TextSize = 11
     textLbl.TextXAlignment = Enum.TextXAlignment.Left
     textLbl.ZIndex = 54
     textLbl.Parent = btn
@@ -758,8 +767,8 @@ end
 
 function GUI:CreateContentArea()
     self.Main.Content = Instance.new("ScrollingFrame")
-    self.Main.Content.Size = UDim2.new(1, -(Config.Size.Nav.Width + 45), 1, -75)
-    self.Main.Content.Position = UDim2.new(0, Config.Size.Nav.Width + 25, 0, 60)
+    self.Main.Content.Size = UDim2.new(1, -(Config.Size.Nav.Width + 40), 1, -75)
+    self.Main.Content.Position = UDim2.new(0, Config.Size.Nav.Width + 20, 0, 60)
     self.Main.Content.BackgroundTransparency = 1
     self.Main.Content.BorderSizePixel = 0
     self.Main.Content.ScrollBarThickness = 5
@@ -770,7 +779,7 @@ function GUI:CreateContentArea()
     self.Main.Content.Parent = self.Main.Window
     
     local list = Instance.new("UIListLayout")
-    list.Padding = UDim.new(0, 10)
+    list.Padding = UDim.new(0, 8)
     list.SortOrder = Enum.SortOrder.LayoutOrder
     list.Parent = self.Main.Content
     
@@ -821,9 +830,7 @@ function GUI:LoadTab(tabName)
     end
     
     -- Load tab content
-    if tabName == "Home" then
-        self:CreateHomeTab()
-    elseif tabName == "Visuals" then
+    if tabName == "Visuals" then
         self:CreateVisualsTab()
     elseif tabName == "Combat" then
         self:CreateCombatTab()
@@ -846,7 +853,7 @@ end
 
 function GUI:CreateSection(title)
     local section = Instance.new("Frame")
-    section.Size = UDim2.new(1, 0, 0, 50)
+    section.Size = UDim2.new(1, 0, 0, 40)
     section.BackgroundColor3 = Config.Color.Background.Secondary
     section.BackgroundTransparency = 0.4
     section.BorderSizePixel = 0
@@ -858,13 +865,13 @@ function GUI:CreateSection(title)
     Util:Stroke(section, 1, Config.Color.Accent.White, 0.88)
     
     local titleLbl = Instance.new("TextLabel")
-    titleLbl.Size = UDim2.new(1, -20, 0, 30)
-    titleLbl.Position = UDim2.new(0, 10, 0, 8)
+    titleLbl.Size = UDim2.new(1, -20, 0, 25)
+    titleLbl.Position = UDim2.new(0, 10, 0, 6)
     titleLbl.BackgroundTransparency = 1
     titleLbl.Font = Enum.Font.GothamBold
     titleLbl.Text = title
     titleLbl.TextColor3 = Config.Color.Text.Primary
-    titleLbl.TextSize = 13
+    titleLbl.TextSize = 12
     titleLbl.TextXAlignment = Enum.TextXAlignment.Left
     titleLbl.ZIndex = 54
     titleLbl.Parent = section
@@ -872,18 +879,18 @@ function GUI:CreateSection(title)
     local container = Instance.new("Frame")
     container.Name = "Container"
     container.Size = UDim2.new(1, -20, 0, 0)
-    container.Position = UDim2.new(0, 10, 0, 40)
+    container.Position = UDim2.new(0, 10, 0, 32)
     container.BackgroundTransparency = 1
     container.AutomaticSize = Enum.AutomaticSize.Y
     container.ZIndex = 53
     container.Parent = section
     
     local list = Instance.new("UIListLayout")
-    list.Padding = UDim.new(0, 8)
+    list.Padding = UDim.new(0, 6)
     list.Parent = container
     
     local pad = Instance.new("UIPadding")
-    pad.PaddingBottom = UDim.new(0, 10)
+    pad.PaddingBottom = UDim.new(0, 8)
     pad.Parent = section
     
     return container
@@ -903,19 +910,19 @@ function GUI:CreateToggle(parent, text, default, callback)
     
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, -50, 1, 0)
-    label.Position = UDim2.new(0, 12, 0, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
     label.BackgroundTransparency = 1
     label.Font = Enum.Font.Gotham
     label.Text = text
     label.TextColor3 = Config.Color.Text.Primary
-    label.TextSize = 11
+    label.TextSize = 10
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 55
     label.Parent = toggle
     
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0, Config.Size.Toggle.Width, 0, Config.Size.Toggle.Height)
-    btn.Position = UDim2.new(1, -50, 0.5, -10)
+    btn.Position = UDim2.new(1, -45, 0.5, -10)
     btn.BackgroundColor3 = default and Config.Color.State.Success or Config.Color.Background.Primary
     btn.BorderSizePixel = 0
     btn.Text = ""
@@ -957,7 +964,7 @@ end
 
 function GUI:CreateSlider(parent, text, min, max, default, callback)
     local slider = Instance.new("Frame")
-    slider.Size = UDim2.new(1, 0, 0, 48)
+    slider.Size = UDim2.new(1, 0, 0, 44)
     slider.BackgroundColor3 = Config.Color.Background.Input
     slider.BackgroundTransparency = 0.5
     slider.BorderSizePixel = 0
@@ -968,32 +975,32 @@ function GUI:CreateSlider(parent, text, min, max, default, callback)
     Util:Stroke(slider, 0.5, Config.Color.Accent.White, 0.9)
     
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -80, 0, 20)
-    label.Position = UDim2.new(0, 12, 0, 6)
+    label.Size = UDim2.new(1, -70, 0, 18)
+    label.Position = UDim2.new(0, 10, 0, 4)
     label.BackgroundTransparency = 1
     label.Font = Enum.Font.Gotham
     label.Text = text
     label.TextColor3 = Config.Color.Text.Primary
-    label.TextSize = 11
+    label.TextSize = 10
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 55
     label.Parent = slider
     
     local value = Instance.new("TextLabel")
-    value.Size = UDim2.new(0, 70, 0, 20)
-    value.Position = UDim2.new(1, -78, 0, 6)
+    value.Size = UDim2.new(0, 60, 0, 18)
+    value.Position = UDim2.new(1, -68, 0, 4)
     value.BackgroundTransparency = 1
     value.Font = Enum.Font.GothamBold
     value.Text = tostring(default)
     value.TextColor3 = Config.Color.Accent.White
-    value.TextSize = 11
+    value.TextSize = 10
     value.TextXAlignment = Enum.TextXAlignment.Right
     value.ZIndex = 55
     value.Parent = slider
     
     local bg = Instance.new("Frame")
-    bg.Size = UDim2.new(1, -24, 0, Config.Size.Slider.Height)
-    bg.Position = UDim2.new(0, 12, 1, -16)
+    bg.Size = UDim2.new(1, -20, 0, Config.Size.Slider.Height)
+    bg.Position = UDim2.new(0, 10, 1, -14)
     bg.BackgroundColor3 = Config.Color.Background.Primary
     bg.BorderSizePixel = 0
     bg.ZIndex = 55
@@ -1053,14 +1060,14 @@ end
 
 function GUI:CreateButton(parent, text, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 34)
+    btn.Size = UDim2.new(1, 0, 0, 30)
     btn.BackgroundColor3 = Config.Color.Background.Secondary
     btn.BackgroundTransparency = 0.3
     btn.BorderSizePixel = 0
     btn.Font = Enum.Font.GothamBold
-    btn.Text = text
+    btn.Text = text -- KEEP TEXT FOR BUTTONS
     btn.TextColor3 = Config.Color.Text.Primary
-    btn.TextSize = 12
+    btn.TextSize = 11
     btn.AutoButtonColor = false
     btn.ZIndex = 54
     btn.Parent = parent
@@ -1087,9 +1094,53 @@ function GUI:CreateButton(parent, text, callback)
     return btn
 end
 
+function GUI:CreateColorPicker(parent, text, defaultColor, callback)
+    local picker = Instance.new("Frame")
+    picker.Size = UDim2.new(1, 0, 0, Config.Size.Element.Height)
+    picker.BackgroundColor3 = Config.Color.Background.Input
+    picker.BackgroundTransparency = 0.5
+    picker.BorderSizePixel = 0
+    picker.ZIndex = 54
+    picker.Parent = parent
+    
+    Util:Corner(picker, 6)
+    Util:Stroke(picker, 0.5, Config.Color.Accent.White, 0.9)
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -50, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.Gotham
+    label.Text = text
+    label.TextColor3 = Config.Color.Text.Primary
+    label.TextSize = 10
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 55
+    label.Parent = picker
+    
+    local colorBox = Instance.new("TextButton")
+    colorBox.Size = UDim2.new(0, 35, 0, 20)
+    colorBox.Position = UDim2.new(1, -45, 0.5, -10)
+    colorBox.BackgroundColor3 = defaultColor
+    colorBox.BorderSizePixel = 0
+    colorBox.Text = ""
+    colorBox.AutoButtonColor = false
+    colorBox.ZIndex = 55
+    Util:Corner(colorBox, 4)
+    colorBox.Parent = picker
+    
+    colorBox.MouseButton1Click:Connect(function()
+        -- Color picker UI would open here
+        print("[COLOR PICKER] " .. text)
+        if callback then pcall(callback, defaultColor) end
+    end)
+    
+    return picker
+end
+
 function GUI:CreateLabel(parent, labelText, valueText)
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 0, 28)
+    frame.Size = UDim2.new(1, 0, 0, 26)
     frame.BackgroundColor3 = Config.Color.Background.Input
     frame.BackgroundTransparency = 0.6
     frame.BorderSizePixel = 0
@@ -1099,8 +1150,8 @@ function GUI:CreateLabel(parent, labelText, valueText)
     Util:Corner(frame, 6)
     
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0.5, -12, 1, 0)
-    label.Position = UDim2.new(0, 12, 0, 0)
+    label.Size = UDim2.new(0.5, -10, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
     label.BackgroundTransparency = 1
     label.Font = Enum.Font.Gotham
     label.Text = labelText
@@ -1111,7 +1162,7 @@ function GUI:CreateLabel(parent, labelText, valueText)
     label.Parent = frame
     
     local value = Instance.new("TextLabel")
-    value.Size = UDim2.new(0.5, -12, 1, 0)
+    value.Size = UDim2.new(0.5, -10, 1, 0)
     value.Position = UDim2.new(0.5, 0, 0, 0)
     value.BackgroundTransparency = 1
     value.Font = Enum.Font.GothamBold
@@ -1125,123 +1176,227 @@ function GUI:CreateLabel(parent, labelText, valueText)
     return frame
 end
 
+function GUI:CreateKeybindButton(parent, text, defaultKey, callback)
+    local keybind = Instance.new("Frame")
+    keybind.Size = UDim2.new(1, 0, 0, Config.Size.Element.Height)
+    keybind.BackgroundColor3 = Config.Color.Background.Input
+    keybind.BackgroundTransparency = 0.5
+    keybind.BorderSizePixel = 0
+    keybind.ZIndex = 54
+    keybind.Parent = parent
+    
+    Util:Corner(keybind, 6)
+    Util:Stroke(keybind, 0.5, Config.Color.Accent.White, 0.9)
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -90, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.Gotham
+    label.Text = text
+    label.TextColor3 = Config.Color.Text.Primary
+    label.TextSize = 10
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 55
+    label.Parent = keybind
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 80, 0, 24)
+    btn.Position = UDim2.new(1, -85, 0.5, -12)
+    btn.BackgroundColor3 = Config.Color.Background.Secondary
+    btn.BackgroundTransparency = 0.3
+    btn.BorderSizePixel = 0
+    btn.Font = Enum.Font.GothamBold
+    btn.Text = defaultKey.Name
+    btn.TextColor3 = Config.Color.Text.Primary
+    btn.TextSize = 10
+    btn.AutoButtonColor = false
+    btn.ZIndex = 55
+    Util:Corner(btn, 4)
+    btn.Parent = keybind
+    
+    local listening = false
+    
+    btn.MouseButton1Click:Connect(function()
+        if listening then return end
+        listening = true
+        btn.Text = "..."
+        
+        local connection
+        connection = UserInputService.InputBegan:Connect(function(input, gp)
+            if gp then return end
+            if input.UserInputType == Enum.UserInputType.Keyboard then
+                btn.Text = input.KeyCode.Name
+                if callback then pcall(callback, input.KeyCode) end
+                listening = false
+                connection:Disconnect()
+            end
+        end)
+    end)
+    
+    return keybind
+end
+
+function GUI:CreateDropdown(parent, text, options, defaultOption, callback)
+    local dropdown = Instance.new("Frame")
+    dropdown.Size = UDim2.new(1, 0, 0, Config.Size.Element.Height)
+    dropdown.BackgroundColor3 = Config.Color.Background.Input
+    dropdown.BackgroundTransparency = 0.5
+    dropdown.BorderSizePixel = 0
+    dropdown.ZIndex = 54
+    dropdown.Parent = parent
+    
+    Util:Corner(dropdown, 6)
+    Util:Stroke(dropdown, 0.5, Config.Color.Accent.White, 0.9)
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -100, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.Gotham
+    label.Text = text
+    label.TextColor3 = Config.Color.Text.Primary
+    label.TextSize = 10
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 55
+    label.Parent = dropdown
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 90, 0, 24)
+    btn.Position = UDim2.new(1, -95, 0.5, -12)
+    btn.BackgroundColor3 = Config.Color.Background.Secondary
+    btn.BackgroundTransparency = 0.3
+    btn.BorderSizePixel = 0
+    btn.Font = Enum.Font.Gotham
+    btn.Text = defaultOption
+    btn.TextColor3 = Config.Color.Text.Primary
+    btn.TextSize = 10
+    btn.AutoButtonColor = false
+    btn.ZIndex = 55
+    Util:Corner(btn, 4)
+    btn.Parent = dropdown
+    
+    local currentIndex = 1
+    for i, opt in ipairs(options) do
+        if opt == defaultOption then
+            currentIndex = i
+            break
+        end
+    end
+    
+    btn.MouseButton1Click:Connect(function()
+        currentIndex = currentIndex + 1
+        if currentIndex > #options then
+            currentIndex = 1
+        end
+        
+        btn.Text = options[currentIndex]
+        if callback then pcall(callback, options[currentIndex]) end
+    end)
+    
+    return dropdown
+end
+
 --// ════════════════════════════════════════════════════════════════════════
 --// TAB CONTENT
 --// ════════════════════════════════════════════════════════════════════════
 
-function GUI:CreateHomeTab()
-    local welcome = self:CreateSection("Welcome to Candy Zone")
-    
-    local info = Instance.new("TextLabel")
-    info.Size = UDim2.new(1, -20, 0, 80)
-    info.BackgroundTransparency = 1
-    info.Font = Enum.Font.Gotham
-    info.Text = [[Premium executor GUI with full compatibility.
-
-Features: ESP, Aimbot, Speed Hacks, and much more!
-Press RightShift to toggle the menu.]]
-    info.TextColor3 = Config.Color.Text.Secondary
-    info.TextSize = 11
-    info.TextWrapped = true
-    info.TextYAlignment = Enum.TextYAlignment.Top
-    info.TextXAlignment = Enum.TextXAlignment.Left
-    info.ZIndex = 53
-    info.Parent = welcome
-    
-    local stats = self:CreateSection("Statistics")
-    self:CreateLabel(stats, "Game", Util:GetGameName())
-    self:CreateLabel(stats, "Players", #Players:GetPlayers() .. " Online")
-    self:CreateLabel(stats, "Version", Config.Version)
-    self:CreateLabel(stats, "FPS", FPS.current)
-end
-
 function GUI:CreateVisualsTab()
-    local esp = self:CreateSection("ESP Options")
-    self:CreateToggle(esp, "Player ESP", false, function(s) print("[ESP] Player:", s) end)
-    self:CreateToggle(esp, "Name ESP", false, function(s) print("[ESP] Name:", s) end)
-    self:CreateToggle(esp, "Health ESP", false, function(s) print("[ESP] Health:", s) end)
-    self:CreateToggle(esp, "Distance ESP", false, function(s) print("[ESP] Distance:", s) end)
-    self:CreateSlider(esp, "ESP Distance", 0, 2000, 1000, function(v) print("[ESP] Max Distance:", v) end)
+    -- ESP Section
+    local esp = self:CreateSection("ESP")
+    self:CreateToggle(esp, "Highlight Inn", false, function(s) print("[ESP] Inn:", s) end)
+    self:CreateToggle(esp, "Highlight Sheriff", false, function(s) print("[ESP] Sheriff:", s) end)
+    self:CreateToggle(esp, "Highlight Hero", false, function(s) print("[ESP] Hero:", s) end)
+    self:CreateToggle(esp, "Highlight Murder", false, function(s) print("[ESP] Murder:", s) end)
     
-    local chams = self:CreateSection("Chams")
-    self:CreateToggle(chams, "Enable Chams", false, function(s) print("[CHAMS] Enabled:", s) end)
-    self:CreateSlider(chams, "Transparency", 0, 100, 50, function(v) print("[CHAMS] Transparency:", v) end)
+    -- Player Section
+    local player = self:CreateSection("Player")
+    self:CreateToggle(player, "ForceField", false, function(s) print("[PLAYER] ForceField:", s) end)
+    self:CreateColorPicker(player, "ForceField Color", Config.Settings.Colors.ForceField, function(c)
+        Config.Settings.Colors.ForceField = c
+        print("[PLAYER] ForceField Color changed")
+    end)
     
-    local other = self:CreateSection("Other Visuals")
-    self:CreateToggle(other, "Tracers", false, function(s) print("[VISUAL] Tracers:", s) end)
-    self:CreateToggle(other, "Skeleton ESP", false, function(s) print("[VISUAL] Skeleton:", s) end)
-    self:CreateToggle(other, "Crosshair", false, function(s) print("[VISUAL] Crosshair:", s) end)
-    self:CreateButton(other, "Reset All Visuals", function() print("[VISUAL] Reset All") end)
+    self:CreateToggle(player, "Target ESP", false, function(s) print("[PLAYER] Target ESP:", s) end)
+    self:CreateColorPicker(player, "Target ESP Color", Config.Settings.Colors.TargetESP, function(c)
+        Config.Settings.Colors.TargetESP = c
+        print("[PLAYER] Target ESP Color changed")
+    end)
+    
+    self:CreateToggle(player, "Aura Trail", false, function(s) print("[PLAYER] Aura Trail:", s) end)
+    self:CreateColorPicker(player, "Aura Trail Color", Config.Settings.Colors.AuraTrail, function(c)
+        Config.Settings.Colors.AuraTrail = c
+        print("[PLAYER] Aura Trail Color changed")
+    end)
 end
 
 function GUI:CreateCombatTab()
-    local aimbot = self:CreateSection("Aimbot")
-    self:CreateToggle(aimbot, "Enable Aimbot", false, function(s) print("[AIMBOT] Enabled:", s) end)
-    self:CreateToggle(aimbot, "Visible Check", true, function(s) print("[AIMBOT] Visible:", s) end)
-    self:CreateToggle(aimbot, "Team Check", true, function(s) print("[AIMBOT] Team Check:", s) end)
-    self:CreateSlider(aimbot, "FOV Size", 0, 360, 120, function(v) print("[AIMBOT] FOV:", v) end)
-    self:CreateSlider(aimbot, "Smoothness", 0, 100, 50, function(v) print("[AIMBOT] Smoothness:", v) end)
+    -- Camlock Aim Section
+    local camlock = self:CreateSection("Camlock Aim")
+    self:CreateToggle(camlock, "Camlock Aim", false, function(s) print("[CAMLOCK] Enabled:", s) end)
+    self:CreateSlider(camlock, "FOV", 0, 360, 120, function(v) print("[CAMLOCK] FOV:", v) end)
+    self:CreateSlider(camlock, "Predict", 0, 200, 100, function(v) print("[CAMLOCK] Predict:", v) end)
+    self:CreateToggle(camlock, "Visible Check", true, function(s) print("[CAMLOCK] Visible:", s) end)
+    self:CreateSlider(camlock, "Smoothness", 0, 100, 50, function(v) print("[CAMLOCK] Smoothness:", v) end)
+    self:CreateToggle(camlock, "Predict", true, function(s) print("[CAMLOCK] Predict Toggle:", s) end)
     
+    -- Silent Aim Section
     local silent = self:CreateSection("Silent Aim")
-    self:CreateToggle(silent, "Enable Silent Aim", false, function(s) print("[SILENT] Enabled:", s) end)
-    self:CreateSlider(silent, "Hit Chance", 0, 100, 80, function(v) print("[SILENT] Hit Chance:", v) end)
+    self:CreateToggle(silent, "Silent Aim", false, function(s) print("[SILENT] Enabled:", s) end)
+    self:CreateSlider(silent, "FOV", 0, 360, 120, function(v) print("[SILENT] FOV:", v) end)
+    self:CreateSlider(silent, "Predict", 0, 200, 100, function(v) print("[SILENT] Predict:", v) end)
+    self:CreateToggle(silent, "Visible Check", true, function(s) print("[SILENT] Visible:", s) end)
+    self:CreateToggle(silent, "Predict", true, function(s) print("[SILENT] Predict Toggle:", s) end)
     
-    local other = self:CreateSection("Other Combat")
-    self:CreateToggle(other, "Triggerbot", false, function(s) print("[COMBAT] Triggerbot:", s) end)
-    self:CreateToggle(other, "No Recoil", false, function(s) print("[COMBAT] No Recoil:", s) end)
-    self:CreateToggle(other, "No Spread", false, function(s) print("[COMBAT] No Spread:", s) end)
+    -- Buttons Section
+    local buttons = self:CreateSection("Buttons")
+    self:CreateToggle(buttons, "Auto Shoot", false, function(s) print("[AUTO] Auto Shoot:", s) end)
+    self:CreateSlider(buttons, "Predict", 0, 200, 100, function(v) print("[AUTO] Predict:", v) end)
 end
 
 function GUI:CreateRageTab()
-    local speed = self:CreateSection("Speed Hacks")
-    self:CreateToggle(speed, "Speed Hack", false, function(s)
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid.WalkSpeed = s and 100 or 16
-        end
-    end)
-    self:CreateSlider(speed, "Walk Speed", 16, 500, 16, function(v)
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid.WalkSpeed = v
-        end
-    end)
-    self:CreateSlider(speed, "Jump Power", 50, 500, 50, function(v)
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid.JumpPower = v
-        end
-    end)
+    local rage = self:CreateSection("Rage Features")
     
-    local fly = self:CreateSection("Flight")
-    self:CreateToggle(fly, "Fly Mode", false, function(s) print("[FLY] Enabled:", s) end)
-    self:CreateSlider(fly, "Fly Speed", 1, 100, 50, function(v) print("[FLY] Speed:", v) end)
+    self:CreateToggle(rage, "SpinBot", false, function(s) print("[RAGE] SpinBot:", s) end)
+    self:CreateSlider(rage, "SpinBot Speed", 1, 100, 50, function(v) print("[RAGE] Spin Speed:", v) end)
     
-    local other = self:CreateSection("Other Rage")
-    self:CreateToggle(other, "Noclip", false, function(s) print("[RAGE] Noclip:", s) end)
-    self:CreateToggle(other, "God Mode", false, function(s) print("[RAGE] God Mode:", s) end)
-    self:CreateToggle(other, "Infinite Jump", false, function(s) print("[RAGE] Inf Jump:", s) end)
-    self:CreateButton(other, "Reset Character", function()
-        if LocalPlayer.Character then
-            LocalPlayer.Character:BreakJoints()
-        end
-    end)
+    self:CreateToggle(rage, "Bhop", false, function(s) print("[RAGE] Bhop:", s) end)
+    self:CreateSlider(rage, "Bhop Height", 1, 50, 10, function(v) print("[RAGE] Bhop Height:", v) end)
+    
+    self:CreateToggle(rage, "Noclip", false, function(s) print("[RAGE] Noclip:", s) end)
+    
+    self:CreateToggle(rage, "Fly", false, function(s) print("[RAGE] Fly:", s) end)
 end
 
 function GUI:CreateFunTab()
-    local anim = self:CreateSection("Animations")
-    self:CreateButton(anim, "Play Dance", function() print("[FUN] Dance") end)
-    self:CreateButton(anim, "Play Wave", function() print("[FUN] Wave") end)
-    self:CreateButton(anim, "Play Sit", function() print("[FUN] Sit") end)
+    -- Fling Section
+    local fling = self:CreateSection("Fling")
     
-    local sound = self:CreateSection("Sound Spam")
-    self:CreateToggle(sound, "Sound Spam", false, function(s) print("[FUN] Sound Spam:", s) end)
-    self:CreateSlider(sound, "Volume", 0, 100, 50, function(v) print("[FUN] Volume:", v) end)
+    -- Scan all players and create buttons
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            self:CreateButton(fling, player.Name, function()
+                print("[FLING] Flinging: " .. player.Name)
+                -- Fling logic goes here (you'll implement)
+            end)
+        end
+    end
     
-    local particles = self:CreateSection("Particle Effects")
-    self:CreateToggle(particles, "Trail Effect", false, function(s) print("[FUN] Trail:", s) end)
-    self:CreateToggle(particles, "Sparkles", false, function(s) print("[FUN] Sparkles:", s) end)
-    self:CreateToggle(particles, "Fire Effect", false, function(s) print("[FUN] Fire:", s) end)
+    -- HitSound Section
+    local hitsound = self:CreateSection("HitSound")
+    self:CreateDropdown(hitsound, "HitSound", {
+        "None",
+        "Neverlose",
+        "Skeet",
+        "Bonk",
+        "Pop"
+    }, "None", function(sound)
+        print("[HITSOUND] Selected:", sound)
+    end)
 end
 
 function GUI:CreateSettingsTab()
+    -- GUI Settings
     local gui = self:CreateSection("GUI Settings")
     self:CreateSlider(gui, "Transparency", 0, 100, 10, function(v)
         if self.Main.Window then
@@ -1251,43 +1406,41 @@ function GUI:CreateSettingsTab()
     self:CreateToggle(gui, "Snow Effect", true, function(s)
         Snow:Toggle(s)
     end)
-    self:CreateToggle(gui, "Blur Background", true, function(s)
-        print("[SETTINGS] Blur:", s)
-    end)
     
-    local perf = self:CreateSection("Performance")
-    self:CreateSlider(perf, "FPS Cap", 60, 240, 60, function(v)
-        if setfpscap then
-            setfpscap(v)
-        end
-    end)
-    self:CreateToggle(perf, "Reduce Lag", false, function(s)
-        print("[SETTINGS] Reduce Lag:", s)
-    end)
-    
+    -- Keybinds
     local keys = self:CreateSection("Keybinds")
-    self:CreateLabel(keys, "Toggle GUI", "RightShift")
-    self:CreateLabel(keys, "Panic Key", "End")
+    self:CreateKeybindButton(keys, "Toggle GUI", Config.Settings.Keybinds.ToggleGUI, function(key)
+        Config.Settings.Keybinds.ToggleGUI = key
+        print("[KEYBIND] Toggle GUI:", key.Name)
+    end)
     
-    self:CreateButton(keys, "Reset All Settings", function()
-        print("[SETTINGS] Reset All")
+    self:CreateKeybindButton(keys, "Panic Key", Config.Settings.Keybinds.PanicKey, function(key)
+        Config.Settings.Keybinds.PanicKey = key
+        print("[KEYBIND] Panic Key:", key.Name)
+    end)
+    
+    self:CreateKeybindButton(keys, "Camlock", Config.Settings.Keybinds.Camlock, function(key)
+        Config.Settings.Keybinds.Camlock = key
+        print("[KEYBIND] Camlock:", key.Name)
+    end)
+    
+    self:CreateKeybindButton(keys, "Silent Aim", Config.Settings.Keybinds.SilentAim, function(key)
+        Config.Settings.Keybinds.SilentAim = key
+        print("[KEYBIND] Silent Aim:", key.Name)
     end)
 end
 
 function GUI:CreateMiscTab()
+    -- Utilities
     local util = self:CreateSection("Utilities")
-    self:CreateButton(util, "Rejoin Server", function()
-        game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
-    end)
-    self:CreateButton(util, "Server Hop", function()
-        print("[MISC] Server Hopping...")
-    end)
+    
     self:CreateButton(util, "Copy Game Link", function()
         if setclipboard then
             setclipboard("https://www.roblox.com/games/" .. game.PlaceId)
             print("[MISC] Link copied!")
         end
     end)
+    
     self:CreateButton(util, "Lower Graphics", function()
         local lighting = game:GetService("Lighting")
         lighting.GlobalShadows = false
@@ -1296,27 +1449,11 @@ function GUI:CreateMiscTab()
         print("[MISC] Graphics lowered")
     end)
     
+    -- Information
     local info = self:CreateSection("Information")
-    self:CreateLabel(info, "Developer", "Candy Zone Team")
+    self:CreateLabel(info, "Developer", Config.Developer)
     self:CreateLabel(info, "Version", Config.Version)
-    self:CreateLabel(info, "Discord", "discord.gg/candyzone")
-    
-    local credits = self:CreateSection("Credits")
-    local creditText = Instance.new("TextLabel")
-    creditText.Size = UDim2.new(1, -20, 0, 60)
-    creditText.BackgroundTransparency = 1
-    creditText.Font = Enum.Font.Gotham
-    creditText.Text = [[Made with love by Candy Zone Team
-Join our Discord for updates and support
-Thank you for using our executor!]]
-    creditText.TextColor3 = Config.Color.Text.Secondary
-    creditText.TextSize = 10
-    creditText.TextWrapped = true
-    creditText.TextYAlignment = Enum.TextYAlignment.Top
-    creditText.TextXAlignment = Enum.TextXAlignment.Center
-    creditText.TextTransparency = 0.3
-    creditText.ZIndex = 53
-    creditText.Parent = credits
+    self:CreateLabel(info, "Discord", Config.Discord)
 end
 
 --// ════════════════════════════════════════════════════════════════════════
@@ -1361,10 +1498,10 @@ end
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
-    if input.KeyCode == Enum.KeyCode.RightShift then
-        print("🔑 [CANDY ZONE] RightShift pressed!")
+    if input.KeyCode == Config.Settings.Keybinds.ToggleGUI then
+        print("🔑 [CANDY ZONE] Toggle key pressed!")
         GUI:ToggleMain()
-    elseif input.KeyCode == Enum.KeyCode.End then
+    elseif input.KeyCode == Config.Settings.Keybinds.PanicKey then
         print("⚠️ [CANDY ZONE] Panic key pressed! Destroying...")
         GUI.ScreenGui:Destroy()
         Snow:Destroy()
@@ -1380,15 +1517,17 @@ GUI:Initialize()
 -- Notification
 pcall(function()
     StarterGui:SetCore("SendNotification", {
-        Title = "🍬 Candy Zone Loaded",
+        Title = "🍬 Candy Zone MM2",
         Text = "Press RightShift to open",
         Duration = 5
     })
 end)
 
 print("═══════════════════════════════════════════════════════════")
-print("🍬 CANDY ZONE EXECUTOR v" .. Config.Version)
+print("🍬 CANDY ZONE MM2 v" .. Config.Version)
 print("✅ Successfully Loaded!")
 print("🎮 Game: " .. Util:GetGameName())
+print("👤 Developer: " .. Config.Developer)
+print("💬 Discord: " .. Config.Discord)
 print("⌨️ Toggle: RightShift | Panic: End")
 print("═══════════════════════════════════════════════════════════")
