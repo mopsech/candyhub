@@ -3309,7 +3309,7 @@ function GUI:CreateVisualsTab()
         end
     end)
 
-    local auraSec = self:CreateSection('Player — Aura Trailer')
+local auraSec = self:CreateSection('Player — Aura Trailer')
     self:CreateToggle(auraSec, 'Enable Aura Trailer', false, function(s)
         AuraTrailer_Toggle(s)
     end)
@@ -3325,6 +3325,101 @@ function GUI:CreateVisualsTab()
             AuraTrailer_Update()
         end
     end)
+
+    local modelsSec = self:CreateSection('Models — Sahurik')
+    
+    local SahurikVars = {
+        enabled = false,
+        modelId = "138151705692565",
+        attached = false,
+        connection = nil,
+    }
+    
+    local function ApplySahurik(char)
+        if not char then return end
+        local root = char:WaitForChild("HumanoidRootPart", 5)
+        if not root then return end
+        local success, result = pcall(function()
+            return game:GetObjects("rbxassetid://" .. SahurikVars.modelId)[1]
+        end)
+        if success and result then
+            local old = char:FindFirstChild("SahurikModel")
+            if old then old:Destroy() end
+            for _, v in pairs(char:GetChildren()) do
+                if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+                    v.Transparency = 1
+                elseif v:IsA("Accessory") and v:FindFirstChild("Handle") then
+                    v.Handle.Transparency = 1
+                end
+            end
+            result.Name = "SahurikModel"
+            result.Parent = char
+            local targetPart = result:IsA("BasePart") and result or result:FindFirstChildWhichIsA("BasePart")
+            if targetPart then
+                local weld = Instance.new("Weld")
+                weld.Part0 = root
+                weld.Part1 = targetPart
+                weld.C0 = CFrame.new(0, 0, 0)
+                weld.Parent = targetPart
+                SahurikVars.attached = true
+            end
+        end
+    end
+    
+    local function RemoveSahurik(char)
+        if not char then return end
+        local model = char:FindFirstChild("SahurikModel")
+        if model then model:Destroy() end
+        for _, v in pairs(char:GetChildren()) do
+            if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+                v.Transparency = 0
+            elseif v:IsA("Accessory") and v:FindFirstChild("Handle") then
+                v.Handle.Transparency = 0
+            end
+        end
+        SahurikVars.attached = false
+    end
+    
+    self:CreateToggle(modelsSec, 'Enable Sahurik Model', false, function(s)
+        SahurikVars.enabled = s
+        local char = LocalPlayer.Character
+        if s then
+            if char then ApplySahurik(char) end
+            if not SahurikVars.connection then
+                SahurikVars.connection = LocalPlayer.CharacterAdded:Connect(function(newChar)
+                    task.wait(1)
+                    if SahurikVars.enabled then ApplySahurik(newChar) end
+                end)
+            end
+        else
+            if char then RemoveSahurik(char) end
+            if SahurikVars.connection then
+                SahurikVars.connection:Disconnect()
+                SahurikVars.connection = nil
+            end
+        end
+    end)
+    
+    self:CreateButton(modelsSec, 'Apply Model Now', function()
+        local char = LocalPlayer.Character
+        if char and SahurikVars.enabled then
+            RemoveSahurik(char)
+            task.wait(0.1)
+            ApplySahurik(char)
+        end
+    end)
+    
+    self:CreateButton(modelsSec, 'Remove Model', function()
+        local char = LocalPlayer.Character
+        if char then RemoveSahurik(char) end
+        SahurikVars.enabled = false
+        if SahurikVars.connection then
+            SahurikVars.connection:Disconnect()
+            SahurikVars.connection = nil
+        end
+    end)
+    
+    self:CreateLabel(modelsSec, 'Model Status', 'Ready')
 
     local hitsoundSec = self:CreateSection('HitSound')
     
