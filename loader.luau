@@ -94,18 +94,21 @@ local Config = {
         },
         Colors = {
             ForceField = Color3.fromRGB(0, 255, 255),
-            TargetESP = Color3.fromRGB(255, 0, 0),
+            TargetESP = Color3.fromRGB(255, 70, 90),
             AuraTrail = Color3.fromRGB(255, 255, 0),
             MurderESP = Color3.fromRGB(255, 0, 0),
             SheriffESP = Color3.fromRGB(0, 0, 255),
             InnocentESP = Color3.fromRGB(0, 255, 0),
             HeroESP = Color3.fromRGB(255, 250, 0),
+            ArrowESP = Color3.fromRGB(255, 255, 255),
         },
         ESP = {
             Murder = false,
             Sheriff = false,
             Innocent = false,
             Hero = false,
+            TargetESP = false,
+            ArrowESP = false,
         },
         Combat = {
             Camlock = false,
@@ -385,6 +388,247 @@ local Features = {
 
 local Murder = nil
 local grabbingGun = false
+
+-- ==================== TARGET ESP ====================
+local TargetESPVariables = {
+    enabled = false,
+    size = 45,
+    maxRadius = 50,
+    asset = "rbxassetid://113363639205880",
+    color = Color3.fromRGB(255, 70, 90),
+    rainbow = false,
+    rotation = 0,
+    gui = nil,
+    frame = nil,
+    texture = nil,
+    currentTarget = nil,
+}
+
+local function getRootPart(char)
+    if not char then return nil end
+    return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("LowerTorso") or char:FindFirstChild("MainPart")
+end
+
+local function getHeadPart(char)
+    if not char then return nil end
+    return char:FindFirstChild("Head") or char:FindFirstChild("head") or char:FindFirstChild("CameraPart")
+end
+
+local function isFriend(player)
+    if _G.FriendWhitelist and _G.FriendWhitelist[player] then return true end
+    return false
+end
+
+local function isVisible(targetPart, character)
+    local localChar = LocalPlayer.Character
+    local head = getHeadPart(localChar)
+    if not localChar or not head then return false end
+    
+    local origin = camera.CFrame.Position
+    local direction = (targetPart.Position - origin)
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {localChar, character}
+    raycastParams.IgnoreWater = true
+    
+    local result = workspace:Raycast(origin, direction, raycastParams)
+    return result == nil
+end
+
+local function TargetESP_Init()
+    TargetESPVariables.gui = Instance.new("ScreenGui")
+    TargetESPVariables.gui.Name = "AunixTargetESP"
+    TargetESPVariables.gui.ResetOnSpawn = false
+    TargetESPVariables.gui.IgnoreGuiInset = true
+    if gethui then
+        TargetESPVariables.gui.Parent = gethui()
+    else
+        TargetESPVariables.gui.Parent = CoreGui
+    end
+
+    TargetESPVariables.frame = Instance.new("Frame")
+    TargetESPVariables.frame.Size = UDim2.new(0, 40, 0, 40)
+    TargetESPVariables.frame.BackgroundTransparency = 1
+    TargetESPVariables.frame.Visible = false
+    TargetESPVariables.frame.Parent = TargetESPVariables.gui
+
+    TargetESPVariables.texture = Instance.new("ImageLabel")
+    TargetESPVariables.texture.Size = UDim2.new(1, 0, 1, 0)
+    TargetESPVariables.texture.AnchorPoint = Vector2.new(0.5, 0.5)
+    TargetESPVariables.texture.Position = UDim2.new(0.5, 0, 0.5, 0)
+    TargetESPVariables.texture.BackgroundTransparency = 1
+    TargetESPVariables.texture.Image = TargetESPVariables.asset
+    TargetESPVariables.texture.ImageColor3 = TargetESPVariables.color
+    TargetESPVariables.texture.Parent = TargetESPVariables.frame
+end
+
+TargetESP_Init()
+
+RunService.RenderStepped:Connect(function(dt)
+    if not TargetESPVariables.enabled then
+        TargetESPVariables.currentTarget = nil
+        TargetESPVariables.frame.Visible = false
+        return
+    end
+
+    if TargetESPVariables.currentTarget then
+        if not TargetESPVariables.currentTarget.Character or not TargetESPVariables.currentTarget.Character:FindFirstChildOfClass("Humanoid") or TargetESPVariables.currentTarget.Character:FindFirstChildOfClass("Humanoid").Health <= 0 then
+            TargetESPVariables.currentTarget = nil
+        end
+    end
+
+    local bestTarget = nil
+    local closestToCenter = math.huge
+    local viewportSize = camera.ViewportSize
+    local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+    local localRoot = getRootPart(LocalPlayer.Character)
+
+    if localRoot then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and not isFriend(player) then
+                local hum = player.Character:FindFirstChildOfClass("Humanoid")
+                local root = getRootPart(player.Character) or getHeadPart(player.Character)
+                
+                if hum and hum.Health > 0 and root then
+                    local dist = (root.Position - localRoot.Position).Magnitude
+                    if dist <= TargetESPVariables.maxRadius then
+                        if isVisible(root, player.Character) then
+                            local screenPos, onScreen = camera:WorldToViewportPoint(root.Position)
+                            if onScreen then
+                                local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                                if screenDist < closestToCenter and screenDist < 250 then
+                                    closestToCenter = screenDist
+                                    bestTarget = player
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    TargetESPVariables.currentTarget = bestTarget
+
+    if TargetESPVariables.currentTarget and TargetESPVariables.currentTarget.Character then
+        local char = TargetESPVariables.currentTarget.Character
+        local targetPart = getRootPart(char) or getHeadPart(char)
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        
+        if targetPart and hum and hum.Health > 0 then
+            local screenPos, onScreen = camera:WorldToViewportPoint(targetPart.Position)
+            if onScreen then
+                TargetESPVariables.rotation = (TargetESPVariables.rotation + 140 * dt) % 360
+                TargetESPVariables.texture.Rotation = TargetESPVariables.rotation
+                TargetESPVariables.texture.Image = TargetESPVariables.asset
+
+                if TargetESPVariables.rainbow then
+                    TargetESPVariables.texture.ImageColor3 = Color3.fromHSV((tick() * 0.5) % 1, 0.8, 1)
+                else
+                    TargetESPVariables.texture.ImageColor3 = TargetESPVariables.color
+                end
+
+                local dist = (targetPart.Position - camera.CFrame.Position).Magnitude
+                local scale = math.clamp(1 - (dist / 60), 0.6, 1.4)
+                local calculatedSize = math.floor(TargetESPVariables.size * scale)
+
+                TargetESPVariables.frame.Size = UDim2.new(0, calculatedSize, 0, calculatedSize)
+                TargetESPVariables.frame.Position = UDim2.new(0, screenPos.X - calculatedSize / 2, 0, screenPos.Y - calculatedSize / 2)
+                TargetESPVariables.frame.Visible = true
+            else
+                TargetESPVariables.frame.Visible = false
+            end
+        else
+            TargetESPVariables.frame.Visible = false
+        end
+    else
+        TargetESPVariables.frame.Visible = false
+    end
+end)
+-- ==================== END TARGET ESP ====================
+
+-- ==================== ARROW ESP ====================
+local ArrowESPVariables = {
+    enabled = false,
+    color = Color3.fromRGB(255, 255, 255),
+    rainbow = false,
+    distance = 80,
+    gui = nil,
+    arrows = {},
+}
+
+local function ArrowESP_Init()
+    ArrowESPVariables.gui = Instance.new("ScreenGui")
+    ArrowESPVariables.gui.Name = "ArrowESP"
+    ArrowESPVariables.gui.ResetOnSpawn = false
+    ArrowESPVariables.gui.IgnoreGuiInset = true
+    if gethui then
+        ArrowESPVariables.gui.Parent = gethui()
+    else
+        ArrowESPVariables.gui.Parent = CoreGui
+    end
+end
+
+ArrowESP_Init()
+
+RunService.RenderStepped:Connect(function()
+    if not ArrowESPVariables.enabled then
+        for _, arrow in pairs(ArrowESPVariables.arrows) do
+            arrow:Remove()
+        end
+        ArrowESPVariables.arrows = {}
+        return
+    end
+
+    for _, arrow in pairs(ArrowESPVariables.arrows) do
+        arrow:Remove()
+    end
+    ArrowESPVariables.arrows = {}
+
+    local viewportSize = camera.ViewportSize
+    local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            local root = getRootPart(player.Character)
+            
+            if hum and hum.Health > 0 and root then
+                local screenPos, onScreen = camera:WorldToViewportPoint(root.Position)
+                
+                if not onScreen or screenPos.Z < 0 then
+                    local direction = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Unit
+                    local angle = math.atan2(direction.Y, direction.X)
+                    
+                    local arrowPos = screenCenter + direction * ArrowESPVariables.distance
+                    
+                    local arrow = Drawing.new("Triangle")
+                    arrow.Visible = true
+                    arrow.Filled = true
+                    arrow.Thickness = 1
+                    
+                    if ArrowESPVariables.rainbow then
+                        arrow.Color = Color3.fromHSV((tick() * 0.5) % 1, 0.8, 1)
+                    else
+                        arrow.Color = ArrowESPVariables.color
+                    end
+                    
+                    local size = 15
+                    local p1 = arrowPos + Vector2.new(math.cos(angle) * size, math.sin(angle) * size)
+                    local p2 = arrowPos + Vector2.new(math.cos(angle + 2.5) * size * 0.6, math.sin(angle + 2.5) * size * 0.6)
+                    local p3 = arrowPos + Vector2.new(math.cos(angle - 2.5) * size * 0.6, math.sin(angle - 2.5) * size * 0.6)
+                    
+                    arrow.PointA = p1
+                    arrow.PointB = p2
+                    arrow.PointC = p3
+                    
+                    table.insert(ArrowESPVariables.arrows, arrow)
+                end
+            end
+        end
+    end
+end)
+-- ==================== END ARROW ESP ====================
 
 -- ==================== HITSOUND SYSTEM ====================
 local HitsoundData = {
@@ -949,7 +1193,6 @@ local function setFly(state)
         flyBG.Parent = hrp
         hum.PlatformStand = true
         
-        -- Mobile controls
         if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
             local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
             local FlyGui = Instance.new("ScreenGui")
@@ -991,7 +1234,6 @@ local function setFly(state)
             hum.PlatformStand = false
         end
         
-        -- Remove mobile controls
         if LocalPlayer:FindFirstChild("PlayerGui") then
             local fg = LocalPlayer.PlayerGui:FindFirstChild("FlyControls")
             if fg then
@@ -1017,7 +1259,6 @@ addConn(RunService.RenderStepped:Connect(function()
     
     local dir = Vector3.new(0, 0, 0)
     
-    -- Keyboard controls
     if UserInputService:IsKeyDown(Enum.KeyCode.W) then
         dir = dir + cam.CFrame.LookVector
     end
@@ -1037,7 +1278,6 @@ addConn(RunService.RenderStepped:Connect(function()
         dir = dir - Vector3.new(0, 1, 0)
     end
     
-    -- Mobile controls
     dir = dir + mobileDir
     
     if dir.Magnitude > 0 then
@@ -1049,7 +1289,6 @@ addConn(RunService.RenderStepped:Connect(function()
     end
 end))
 
--- Mobile button handlers
 task.spawn(function()
     while true do
         mobileDir = Vector3.new(0, 0, 0)
@@ -1539,7 +1778,6 @@ task.spawn(function()
     end
 end)
 
--- ==================== ANTI FLING ====================
 addConn(RunService.Heartbeat:Connect(function()
     if not Config.Settings.Combat.AntiFling then
         return
@@ -1569,7 +1807,6 @@ addConn(RunService.Heartbeat:Connect(function()
         end
     end
 end))
--- ==================== END ANTI FLING ====================
 
 local function Hat_RemoveClassic()
     if HatVariables.parts[LocalPlayer.Character] then
@@ -2977,6 +3214,37 @@ function GUI:CreateVisualsTab()
         Config.Settings.Colors.InnocentESP = c
     end)
 
+    local targetEsp = self:CreateSection('Player — Target ESP')
+    self:CreateToggle(targetEsp, 'Enable Target ESP', Config.Settings.ESP.TargetESP, function(s)
+        TargetESPVariables.enabled = s
+    end)
+    self:CreateToggle(targetEsp, 'Rainbow Mode', TargetESPVariables.rainbow, function(s)
+        TargetESPVariables.rainbow = s
+    end)
+    self:CreateSlider(targetEsp, 'ESP Size', 20, 100, TargetESPVariables.size, function(v)
+        TargetESPVariables.size = v
+    end)
+    self:CreateSlider(targetEsp, 'Max Radius', 10, 150, TargetESPVariables.maxRadius, function(v)
+        TargetESPVariables.maxRadius = v
+    end)
+    self:CreateColorPicker(targetEsp, 'Target ESP Color', TargetESPVariables.color, function(c)
+        TargetESPVariables.color = c
+    end)
+
+    local arrowEsp = self:CreateSection('Player — Arrow ESP')
+    self:CreateToggle(arrowEsp, 'Enable Arrow ESP', Config.Settings.ESP.ArrowESP, function(s)
+        ArrowESPVariables.enabled = s
+    end)
+    self:CreateToggle(arrowEsp, 'Rainbow Mode', ArrowESPVariables.rainbow, function(s)
+        ArrowESPVariables.rainbow = s
+    end)
+    self:CreateSlider(arrowEsp, 'Distance from Center', 50, 150, ArrowESPVariables.distance, function(v)
+        ArrowESPVariables.distance = v
+    end)
+    self:CreateColorPicker(arrowEsp, 'Arrow Color', ArrowESPVariables.color, function(c)
+        ArrowESPVariables.color = c
+    end)
+
     local hatSec = self:CreateSection('Player — Chinese Hat')
     self:CreateToggle(hatSec, 'Enable Hat', false, function(s)
         Hat_ToggleEnabled(s)
@@ -3058,7 +3326,6 @@ function GUI:CreateVisualsTab()
         end
     end)
 
-    -- ==================== HITSOUND SECTION ====================
     local hitsoundSec = self:CreateSection('HitSound')
     
     local gunshotOptions = { "None" }
@@ -3108,7 +3375,6 @@ function GUI:CreateVisualsTab()
         HitsoundData.selectedKnifeKill = "None"
         self:LoadTab('Visuals')
     end)
-    -- ==================== END HITSOUND ====================
 
     local skySec = self:CreateSection('World — Skybox')
     local skyList = {}
