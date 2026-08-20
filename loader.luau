@@ -122,12 +122,12 @@ local Config = {
             BombJump = false,
             AntiFling = false,
             AntiVoid = false,
+            AutoWallHop = false,
+            GrabGun = false,
         },
         Rage = {
             SpinBot = false,
             SpinSpeed = 50,
-            Bhop = false,
-            BhopHeight = 10,
             Noclip = false,
             Fly = false,
             FlySpeed = 50,
@@ -383,45 +383,113 @@ local Features = {
     BombJumpOnCooldown = false,
 }
 
+local Murder = nil
+local grabbingGun = false
+
 -- ==================== HITSOUND SYSTEM ====================
-local gunshotSounds = {
-    ["Alchemist Burst"] = "rbxassetid://130507807370367",
-    ["RPGS Candy"] = "rbxassetid://83995181532586",
-    ["RPGE Beary"] = "rbxassetid://112424028680133",
-    ["DB Bloss"] = "rbxassetid://97681259004692",
-    ["Rev Blossom"] = "rbxassetid://118868788824782",
-    ["Kawaii DG"] = "rbxassetid://135458839245691",
-    ["Hit Basic 3"] = "rbxassetid://90160800327080",
+local HitsoundData = {
+    enabled = false,
+    selectedGunshot = "RPGS Candy",
+    selectedKnifeKill = "Golden Knife Kill",
+    hooked = {},
+    gunshotSounds = {
+        ["Alchemist Burst"] = "rbxassetid://130507807370367",
+        ["RPGS Candy"]      = "rbxassetid://83995181532586",
+        ["RPGE Beary"]      = "rbxassetid://112424028680133",
+        ["DB Bloss"]        = "rbxassetid://97681259004692",
+        ["Rev Blossom"]     = "rbxassetid://118868788824782",
+        ["Kawaii DG"]       = "rbxassetid://135458839245691",
+        ["Hit Basic 3"]     = "rbxassetid://90160800327080",
+        ["Bameware"]        = "rbxassetid://3124331820",
+        ["Bell"]            = "rbxassetid://6534947240",
+        ["Bubble"]          = "rbxassetid://6534947588",
+        ["Pick"]            = "rbxassetid://1347140027",
+        ["Pop"]             = "rbxassetid://198598793",
+        ["Rust"]            = "rbxassetid://1255040462",
+        ["Sans"]            = "rbxassetid://3188795283",
+        ["Fart"]            = "rbxassetid://130833677",
+        ["Big"]             = "rbxassetid://5332005053",
+        ["Vine"]            = "rbxassetid://5332680810",
+        ["Bruh"]            = "rbxassetid://4578740568",
+        ["Skeet"]           = "rbxassetid://5633695679",
+        ["Neverlose"]       = "rbxassetid://6534948092",
+        ["Fatality"]        = "rbxassetid://6534947869",
+        ["Bonk"]            = "rbxassetid://5766898159",
+        ["Minecraft"]       = "rbxassetid://4018616850",
+        ["Call of Duty"]    = "rbxassetid://5952120301",
+        ["Bat"]             = "rbxassetid://3333907347",
+        ["Saber"]           = "rbxassetid://8415678813",
+        ["Notif"]           = "rbxassetid://6696469190",
+        ["Shutter"]         = "rbxassetid://10066921516",
+        ["RIFK7"]           = "rbxassetid://9102080552",
+        ["LazerBeam"]       = "rbxassetid://130791043",
+        ["WindowsXPError"]  = "rbxassetid://160715357",
+        ["BowHit"]          = "rbxassetid://1053296915",
+        ["Bow"]             = "rbxassetid://3442683707",
+        ["OSU"]             = "rbxassetid://7147454322",
+        ["Old Fatality"]    = "rbxassetid://6607142036",
+        ["TF2"]             = "rbxassetid://2868331684",
+        ["BulletDeflect"]   = "rbxassetid://1657157666",
+        ["UwU"]             = "rbxassetid://8679659744",
+        ["Cod"]             = "rbxassetid://160432334",
+    },
+    knifeKillSounds = {
+        ["S3 Coin Hit"]         = "rbxassetid://139857881082762",
+        ["Custom Hit 1"]        = "rbxassetid://138592514473573",
+        ["Golden Knife Kill"]   = "rbxassetid://6066375795",
+        ["Among Us"]            = "rbxassetid://130456049552264",
+        ["Jeff Laugh"]          = "rbxassetid://140445930084397",
+        ["Pelmeni"]             = "rbxassetid://130226230760992",
+        ["Horror Kill"]         = "rbxassetid://128741351184513",
+        ["Jeff Stab"]           = "rbxassetid://81483362340487",
+        ["Bameware"]            = "rbxassetid://3124331820",
+        ["Bell"]                = "rbxassetid://6534947240",
+        ["Bubble"]              = "rbxassetid://6534947588",
+        ["Pick"]                = "rbxassetid://1347140027",
+        ["Pop"]                 = "rbxassetid://198598793",
+        ["Rust"]                = "rbxassetid://1255040462",
+        ["Sans"]                = "rbxassetid://3188795283",
+        ["Fart"]                = "rbxassetid://130833677",
+        ["Big"]                 = "rbxassetid://5332005053",
+        ["Vine"]                = "rbxassetid://5332680810",
+        ["Bruh"]                = "rbxassetid://4578740568",
+        ["Skeet"]               = "rbxassetid://5633695679",
+        ["Neverlose"]           = "rbxassetid://6534948092",
+        ["Fatality"]            = "rbxassetid://6534947869",
+        ["Bonk"]                = "rbxassetid://5766898159",
+        ["Minecraft"]           = "rbxassetid://4018616850",
+        ["Call of Duty"]        = "rbxassetid://5952120301",
+        ["Bat"]                 = "rbxassetid://3333907347",
+        ["Saber"]               = "rbxassetid://8415678813",
+        ["Notif"]               = "rbxassetid://6696469190",
+        ["Shutter"]             = "rbxassetid://10066921516",
+        ["RIFK7"]               = "rbxassetid://9102080552",
+        ["LazerBeam"]           = "rbxassetid://130791043",
+        ["WindowsXPError"]      = "rbxassetid://160715357",
+        ["BowHit"]              = "rbxassetid://1053296915",
+        ["Bow"]                 = "rbxassetid://3442683707",
+        ["OSU"]                 = "rbxassetid://7147454322",
+        ["Old Fatality"]        = "rbxassetid://6607142036",
+        ["TF2"]                 = "rbxassetid://2868331684",
+        ["BulletDeflect"]       = "rbxassetid://1657157666",
+        ["UwU"]                 = "rbxassetid://8679659744",
+        ["Cod"]                 = "rbxassetid://160432334",
+    },
 }
-
-local knifeKillSounds = {
-    ["S3 Coin Hit"] = "rbxassetid://139857881082762",
-    ["Custom Hit 1"] = "rbxassetid://138592514473573",
-    ["Golden Knife Kill"] = "rbxassetid://6066375795",
-    ["Among Us"] = "rbxassetid://130456049552264",
-    ["Jeff Laugh"] = "rbxassetid://140445930084397",
-    ["Pelmeni"] = "rbxassetid://130226230760992",
-    ["Horror Kill"] = "rbxassetid://128741351184513",
-    ["Jeff Stab"] = "rbxassetid://81483362340487",
-}
-
-local selectedGunshot = "RPGS Candy"
-local selectedKnifeKill = "Golden Knife Kill"
-local hooked = {}
 
 local function hookSound(sound)
-    if not sound:IsA("Sound") or hooked[sound] then
+    if not sound:IsA("Sound") or HitsoundData.hooked[sound] then
         return
     end
-    hooked[sound] = true
+    HitsoundData.hooked[sound] = true
 
     sound.Played:Connect(function()
-        if sound.Name == "Gunshot" and selectedGunshot and selectedGunshot ~= "None" and gunshotSounds[selectedGunshot] and sound.SoundId ~= gunshotSounds[selectedGunshot] then
-            sound.SoundId = gunshotSounds[selectedGunshot]
+        if sound.Name == "Gunshot" and HitsoundData.selectedGunshot and HitsoundData.selectedGunshot ~= "None" and HitsoundData.gunshotSounds[HitsoundData.selectedGunshot] and sound.SoundId ~= HitsoundData.gunshotSounds[HitsoundData.selectedGunshot] then
+            sound.SoundId = HitsoundData.gunshotSounds[HitsoundData.selectedGunshot]
             sound.TimePosition = 0
             sound:Play()
-        elseif sound.Name == "Kill" and selectedKnifeKill and selectedKnifeKill ~= "None" and knifeKillSounds[selectedKnifeKill] and sound.SoundId ~= knifeKillSounds[selectedKnifeKill] then
-            sound.SoundId = knifeKillSounds[selectedKnifeKill]
+        elseif sound.Name == "Kill" and HitsoundData.selectedKnifeKill and HitsoundData.selectedKnifeKill ~= "None" and HitsoundData.knifeKillSounds[HitsoundData.selectedKnifeKill] and sound.SoundId ~= HitsoundData.knifeKillSounds[HitsoundData.selectedKnifeKill] then
+            sound.SoundId = HitsoundData.knifeKillSounds[HitsoundData.selectedKnifeKill]
             sound.TimePosition = 0
             sound:Play()
         end
@@ -440,6 +508,125 @@ for _, d in ipairs(workspace:GetDescendants()) do
     end
 end
 -- ==================== END HITSOUND ====================
+
+-- ==================== AUTO WALLHOP ====================
+local isWallHopEnabled = false
+local isFlicking = false
+local lastFlickTime = 0
+local lastHitInstance = nil
+
+local function performVideoFlick()
+    if isFlicking then return end
+    isFlicking = true
+    
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChild("Humanoid")
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hum or not hrp then isFlicking = false return end
+
+    hum:ChangeState(Enum.HumanoidStateType.Jumping)
+    hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z)
+
+    local startCFrame = camera.CFrame
+    camera.CFrame = startCFrame * CFrame.Angles(0, math.rad(180), 0)
+    
+    task.wait(0.01)
+    
+    camera.CFrame = startCFrame
+    
+    isFlicking = false
+end
+
+RunService.Heartbeat:Connect(function()
+    if not Config.Settings.Combat.AutoWallHop then return end
+    
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {char}
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+    local result = workspace:Raycast(hrp.Position, camera.CFrame.LookVector * 3, raycastParams)
+
+    if result and result.Instance.CanCollide then
+        if lastHitInstance and lastHitInstance ~= result.Instance then
+            if tick() - lastFlickTime > 0.05 then
+                lastFlickTime = tick()
+                performVideoFlick()
+            end
+        end
+        lastHitInstance = result.Instance
+    else
+        lastHitInstance = nil
+    end
+end)
+-- ==================== END AUTO WALLHOP ====================
+
+-- ==================== GRAB GUN ====================
+local function IsAlive(player)
+    local char = player.Character
+    if not char then return false end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    return hum and hum.Health > 0
+end
+
+local function grabGun()
+    if grabbingGun then return end
+    if not IsAlive(LocalPlayer) then return end
+    
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not char or not hrp then return end
+    
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    local isMurderer = (char:FindFirstChild("Knife")) or (bp and bp:FindFirstChild("Knife")) or (Murder and LocalPlayer.Name == Murder)
+    if isMurderer then return end
+    
+    local function hasGun()
+        local currentBp = LocalPlayer:FindFirstChild("Backpack")
+        return (char:FindFirstChild("Gun") or char:FindFirstChild("Revolver")) or (currentBp and (currentBp:FindFirstChild("Gun") or currentBp:FindFirstChild("Revolver")))
+    end
+    if hasGun() then return end
+    
+    local gunDrop = workspace:FindFirstChild("GunDrop", true) or workspace:FindFirstChild("DroppedGun", true)
+    local handle = gunDrop and (gunDrop:FindFirstChild("Handle", true) or gunDrop:FindFirstChildOfClass("Part", true) or gunDrop)
+    if not handle then return end
+    
+    grabbingGun = true
+    
+    local originalCFrame = hrp.CFrame
+    local targetCFrame = handle:IsA("Model") and handle:GetPivot() or handle.CFrame
+    
+    hrp.CFrame = targetCFrame * CFrame.new(0, -1, 0)
+    
+    if firetouchinterest then
+        pcall(function()
+            firetouchinterest(hrp, handle, 0)
+            task.wait(0.02)
+            firetouchinterest(hrp, handle, 1)
+        end)
+    end
+    
+    task.wait(0.15)
+    
+    if IsAlive(LocalPlayer) then
+        hrp.CFrame = originalCFrame
+    end
+    
+    grabbingGun = false
+end
+
+task.spawn(function()
+    while true do
+        if Config.Settings.Combat.GrabGun then
+            pcall(grabGun)
+        end
+        task.wait(0.5)
+    end
+end)
+-- ==================== END GRAB GUN ====================
 
 local function addConn(conn)
     table.insert(Features.Connections, conn)
@@ -737,12 +924,14 @@ addConn(RunService.Stepped:Connect(function()
 end))
 
 local flyBV, flyBG
+local mobileButtons = {}
 
 local function setFly(state)
     Config.Settings.Rage.Fly = state
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild('HumanoidRootPart')
     local hum = char and char:FindFirstChildOfClass('Humanoid')
+    
     if state and hrp and hum then
         if flyBV then
             flyBV:Destroy()
@@ -759,6 +948,36 @@ local function setFly(state)
         flyBG.P = 9e4
         flyBG.Parent = hrp
         hum.PlatformStand = true
+        
+        -- Mobile controls
+        if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+            local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+            local FlyGui = Instance.new("ScreenGui")
+            FlyGui.Name = "FlyControls"
+            FlyGui.ResetOnSpawn = false
+            FlyGui.Parent = PlayerGui
+            
+            local function createButton(text, pos)
+                local btn = Instance.new("TextButton")
+                btn.Size = UDim2.new(0, 60, 0, 60)
+                btn.Position = pos
+                btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+                btn.Text = text
+                btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                btn.Font = Enum.Font.GothamBold
+                btn.TextSize = 18
+                btn.Parent = FlyGui
+                Util:Corner(btn, 10)
+                return btn
+            end
+            
+            mobileButtons.forward = createButton("↑", UDim2.new(0.5, -30, 0.8, -130))
+            mobileButtons.backward = createButton("↓", UDim2.new(0.5, -30, 0.8, -60))
+            mobileButtons.left = createButton("←", UDim2.new(0.5, -100, 0.8, -95))
+            mobileButtons.right = createButton("→", UDim2.new(0.5, 40, 0.8, -95))
+            mobileButtons.up = createButton("▲", UDim2.new(0.1, 0, 0.8, -95))
+            mobileButtons.down = createButton("▼", UDim2.new(0.1, 70, 0.8, -95))
+        end
     else
         if flyBV then
             flyBV:Destroy()
@@ -771,8 +990,19 @@ local function setFly(state)
         if hum then
             hum.PlatformStand = false
         end
+        
+        -- Remove mobile controls
+        if LocalPlayer:FindFirstChild("PlayerGui") then
+            local fg = LocalPlayer.PlayerGui:FindFirstChild("FlyControls")
+            if fg then
+                fg:Destroy()
+            end
+        end
+        mobileButtons = {}
     end
 end
+
+local mobileDir = Vector3.new(0, 0, 0)
 
 addConn(RunService.RenderStepped:Connect(function()
     if not Config.Settings.Rage.Fly then
@@ -784,7 +1014,10 @@ addConn(RunService.RenderStepped:Connect(function()
     if not hrp or not cam or not flyBV then
         return
     end
+    
     local dir = Vector3.new(0, 0, 0)
+    
+    -- Keyboard controls
     if UserInputService:IsKeyDown(Enum.KeyCode.W) then
         dir = dir + cam.CFrame.LookVector
     end
@@ -803,6 +1036,10 @@ addConn(RunService.RenderStepped:Connect(function()
     if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
         dir = dir - Vector3.new(0, 1, 0)
     end
+    
+    -- Mobile controls
+    dir = dir + mobileDir
+    
     if dir.Magnitude > 0 then
         dir = dir.Unit * (Config.Settings.Rage.FlySpeed or 50)
     end
@@ -811,6 +1048,44 @@ addConn(RunService.RenderStepped:Connect(function()
         flyBG.CFrame = cam.CFrame
     end
 end))
+
+-- Mobile button handlers
+task.spawn(function()
+    while true do
+        mobileDir = Vector3.new(0, 0, 0)
+        if mobileButtons.forward and mobileButtons.forward:IsDescendantOf(game) then
+            if mobileButtons.forward.MouseButton1Down:Wait() then
+                mobileDir = mobileDir + camera.CFrame.LookVector
+            end
+        end
+        if mobileButtons.backward and mobileButtons.backward:IsDescendantOf(game) then
+            if mobileButtons.backward.MouseButton1Down:Wait() then
+                mobileDir = mobileDir - camera.CFrame.LookVector
+            end
+        end
+        if mobileButtons.left and mobileButtons.left:IsDescendantOf(game) then
+            if mobileButtons.left.MouseButton1Down:Wait() then
+                mobileDir = mobileDir - camera.CFrame.RightVector
+            end
+        end
+        if mobileButtons.right and mobileButtons.right:IsDescendantOf(game) then
+            if mobileButtons.right.MouseButton1Down:Wait() then
+                mobileDir = mobileDir + camera.CFrame.RightVector
+            end
+        end
+        if mobileButtons.up and mobileButtons.up:IsDescendantOf(game) then
+            if mobileButtons.up.MouseButton1Down:Wait() then
+                mobileDir = mobileDir + Vector3.new(0, 1, 0)
+            end
+        end
+        if mobileButtons.down and mobileButtons.down:IsDescendantOf(game) then
+            if mobileButtons.down.MouseButton1Down:Wait() then
+                mobileDir = mobileDir - Vector3.new(0, 1, 0)
+            end
+        end
+        task.wait()
+    end
+end)
 
 addConn(RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
@@ -822,12 +1097,6 @@ addConn(RunService.Heartbeat:Connect(function(dt)
     if Config.Settings.Rage.SpeedGlitch and hum.MoveDirection.Magnitude > 0 then
         local slideVector = Vector3.new(hum.MoveDirection.X, 0, hum.MoveDirection.Z).Unit
         hrp.CFrame = hrp.CFrame + (slideVector * (Config.Settings.Rage.SpeedForce * dt))
-    end
-    if Config.Settings.Rage.Bhop and hum:GetState() ~= Enum.HumanoidStateType.Freefall then
-        if hum.MoveDirection.Magnitude > 0 then
-            hum.Jump = true
-            hrp.Velocity = Vector3.new(hrp.Velocity.X, Config.Settings.Rage.BhopHeight or 10, hrp.Velocity.Z)
-        end
     end
 end))
 
@@ -1795,6 +2064,7 @@ local GUI = {
         Nav = {},
         Content = nil,
     },
+    ToggleStates = {},
 }
 
 function GUI:Initialize()
@@ -2256,6 +2526,11 @@ function GUI:CreateSection(title)
 end
 
 function GUI:CreateToggle(parent, text, default, callback)
+    local stateKey = text
+    if self.ToggleStates[stateKey] ~= nil then
+        default = self.ToggleStates[stateKey]
+    end
+    
     local toggle = Instance.new('Frame')
     toggle.Size = UDim2.new(1, 0, 0, Config.Size.Element.Height)
     toggle.BackgroundColor3 = Config.Color.Background.Input
@@ -2297,6 +2572,7 @@ function GUI:CreateToggle(parent, text, default, callback)
     local state = default
     btn.MouseButton1Click:Connect(function()
         state = not state
+        self.ToggleStates[stateKey] = state
         Util:Tween(btn, {
             BackgroundColor3 = state and Config.Color.State.Success or Config.Color.Background.Primary,
         }, Config.Anim.Fast)
@@ -2782,29 +3058,29 @@ function GUI:CreateVisualsTab()
         end
     end)
 
-    -- ==================== HITSOUND SECTION (fixed) ====================
+    -- ==================== HITSOUND SECTION ====================
     local hitsoundSec = self:CreateSection('HitSound')
     
     local gunshotOptions = { "None" }
-    for name in pairs(gunshotSounds) do
+    for name in pairs(HitsoundData.gunshotSounds) do
         table.insert(gunshotOptions, name)
     end
     table.sort(gunshotOptions)
 
     local knifeOptions = { "None" }
-    for name in pairs(knifeKillSounds) do
+    for name in pairs(HitsoundData.knifeKillSounds) do
         table.insert(knifeOptions, name)
     end
     table.sort(knifeOptions)
 
-    self:CreateDropdown(hitsoundSec, 'Gunshot Sound', gunshotOptions, selectedGunshot, function(sound)
-        selectedGunshot = sound == "None" and nil or sound
+    self:CreateDropdown(hitsoundSec, 'Gunshot Sound', gunshotOptions, HitsoundData.selectedGunshot, function(sound)
+        HitsoundData.selectedGunshot = sound == "None" and nil or sound
     end)
 
     self:CreateButton(hitsoundSec, '🔊 Preview Gunshot', function()
-        if selectedGunshot and selectedGunshot ~= "None" and gunshotSounds[selectedGunshot] then
+        if HitsoundData.selectedGunshot and HitsoundData.selectedGunshot ~= "None" and HitsoundData.gunshotSounds[HitsoundData.selectedGunshot] then
             local previewSound = Instance.new("Sound")
-            previewSound.SoundId = gunshotSounds[selectedGunshot]
+            previewSound.SoundId = HitsoundData.gunshotSounds[HitsoundData.selectedGunshot]
             previewSound.Volume = 0.5
             previewSound.Parent = SoundService
             previewSound:Play()
@@ -2812,14 +3088,14 @@ function GUI:CreateVisualsTab()
         end
     end)
 
-    self:CreateDropdown(hitsoundSec, 'Knife Kill Sound', knifeOptions, selectedKnifeKill, function(sound)
-        selectedKnifeKill = sound == "None" and nil or sound
+    self:CreateDropdown(hitsoundSec, 'Knife Kill Sound', knifeOptions, HitsoundData.selectedKnifeKill, function(sound)
+        HitsoundData.selectedKnifeKill = sound == "None" and nil or sound
     end)
 
     self:CreateButton(hitsoundSec, '🔊 Preview Knife Kill', function()
-        if selectedKnifeKill and selectedKnifeKill ~= "None" and knifeKillSounds[selectedKnifeKill] then
+        if HitsoundData.selectedKnifeKill and HitsoundData.selectedKnifeKill ~= "None" and HitsoundData.knifeKillSounds[HitsoundData.selectedKnifeKill] then
             local previewSound = Instance.new("Sound")
-            previewSound.SoundId = knifeKillSounds[selectedKnifeKill]
+            previewSound.SoundId = HitsoundData.knifeKillSounds[HitsoundData.selectedKnifeKill]
             previewSound.Volume = 0.5
             previewSound.Parent = SoundService
             previewSound:Play()
@@ -2828,8 +3104,8 @@ function GUI:CreateVisualsTab()
     end)
 
     self:CreateButton(hitsoundSec, '🗑️ Clear Selection', function()
-        selectedGunshot = nil
-        selectedKnifeKill = nil
+        HitsoundData.selectedGunshot = "None"
+        HitsoundData.selectedKnifeKill = "None"
         self:LoadTab('Visuals')
     end)
     -- ==================== END HITSOUND ====================
@@ -2957,7 +3233,6 @@ function GUI:CreateCombatTab()
         executeBombJump()
     end)
 
-    -- ==================== OTHER SECTION ====================
     local otherSec = self:CreateSection('Other')
     self:CreateToggle(otherSec, 'Anti Fling', Config.Settings.Combat.AntiFling, function(s)
         Config.Settings.Combat.AntiFling = s
@@ -2970,7 +3245,12 @@ function GUI:CreateCombatTab()
             workspace.FallenPartsDestroyHeight = Features.FPDH
         end
     end)
-    -- ==================== END OTHER ====================
+    self:CreateToggle(otherSec, 'Auto WallHop', Config.Settings.Combat.AutoWallHop, function(s)
+        Config.Settings.Combat.AutoWallHop = s
+    end)
+    self:CreateToggle(otherSec, 'Grab Gun', Config.Settings.Combat.GrabGun, function(s)
+        Config.Settings.Combat.GrabGun = s
+    end)
 end
 
 function GUI:CreateRageTab()
@@ -2980,12 +3260,6 @@ function GUI:CreateRageTab()
     end)
     self:CreateSlider(rage, 'SpinBot Speed', 1, 100, Config.Settings.Rage.SpinSpeed, function(v)
         Config.Settings.Rage.SpinSpeed = v
-    end)
-    self:CreateToggle(rage, 'Bhop', Config.Settings.Rage.Bhop, function(s)
-        Config.Settings.Rage.Bhop = s
-    end)
-    self:CreateSlider(rage, 'Bhop Height', 1, 50, Config.Settings.Rage.BhopHeight, function(v)
-        Config.Settings.Rage.BhopHeight = v
     end)
     self:CreateToggle(rage, 'Speed Glitch', Config.Settings.Rage.SpeedGlitch, function(s)
         Config.Settings.Rage.SpeedGlitch = s
