@@ -19,8 +19,10 @@ local MaterialService = game:GetService('MaterialService')
 local ContentProvider = game:GetService('ContentProvider')
 local GuiService = game:GetService('GuiService')
 local TeleportService = game:GetService('TeleportService')
+local SoundService = game:GetService('SoundService')
 local LocalPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
+
 local Config = {
     Version = '0.2 Full',
     Developer = 'mopsech',
@@ -141,44 +143,19 @@ local Config = {
         },
     },
 }
+
 local ColorPresets = {
-    {
-        Name = 'Cyan',
-        Color = Color3.fromRGB(0, 255, 255),
-    },
-    {
-        Name = 'Pink',
-        Color = Color3.fromRGB(255, 105, 180),
-    },
-    {
-        Name = 'Red',
-        Color = Color3.fromRGB(255, 0, 0),
-    },
-    {
-        Name = 'White',
-        Color = Color3.fromRGB(255, 255, 255),
-    },
-    {
-        Name = 'Green',
-        Color = Color3.fromRGB(0, 255, 0),
-    },
-    {
-        Name = 'Blue',
-        Color = Color3.fromRGB(0, 100, 255),
-    },
-    {
-        Name = 'Yellow',
-        Color = Color3.fromRGB(255, 255, 0),
-    },
-    {
-        Name = 'Purple',
-        Color = Color3.fromRGB(180, 0, 255),
-    },
-    {
-        Name = 'Orange',
-        Color = Color3.fromRGB(255, 140, 0),
-    },
+    { Name = 'Cyan', Color = Color3.fromRGB(0, 255, 255) },
+    { Name = 'Pink', Color = Color3.fromRGB(255, 105, 180) },
+    { Name = 'Red', Color = Color3.fromRGB(255, 0, 0) },
+    { Name = 'White', Color = Color3.fromRGB(255, 255, 255) },
+    { Name = 'Green', Color = Color3.fromRGB(0, 255, 0) },
+    { Name = 'Blue', Color = Color3.fromRGB(0, 100, 255) },
+    { Name = 'Yellow', Color = Color3.fromRGB(255, 255, 0) },
+    { Name = 'Purple', Color = Color3.fromRGB(180, 0, 255) },
+    { Name = 'Orange', Color = Color3.fromRGB(255, 140, 0) },
 }
+
 local defaultLighting = {
     Brightness = Lighting.Brightness,
     ClockTime = Lighting.ClockTime,
@@ -189,6 +166,7 @@ local defaultLighting = {
     FogEnd = Lighting.FogEnd,
     FogColor = Lighting.FogColor,
 }
+
 local DefaultSky = Lighting:FindFirstChildOfClass('Sky')
 local DefaultSkySettings = {}
 
@@ -211,6 +189,7 @@ local AuraModels = {
     'Sweet Heart',
     'Ethereal Aura',
 }
+
 local AuraModelIDs = {
     Godly = 'rbxassetid://16699750981',
     ['Super Sayien'] = 'rbxassetid://116109508364297',
@@ -221,93 +200,43 @@ local AuraModelIDs = {
     ['Sweet Heart'] = 'rbxassetid://91724768175470',
     ['Ethereal Aura'] = 'rbxassetid://97041568674250',
 }
+
 local activeClassicAuras = {}
+
 local PARTICLE_AURA_DATA = {
-    {
-        'starlight',
-        'rbxassetid://134645216613107',
-    },
-    {
-        'heavenly',
-        'rbxassetid://139300897520961',
-    },
-    {
-        'ribbon',
-        'rbxassetid://132069507632161',
-    },
-    {
-        'sakura',
-        'rbxassetid://81755778619404',
-    },
-    {
-        'angel',
-        'rbxassetid://97658130917593',
-    },
-    {
-        'wind',
-        'rbxassetid://80694081850877',
-    },
-    {
-        'flow',
-        'rbxassetid://119913533725648',
-    },
-    {
-        'star',
-        'rbxassetid://73754563740680',
-    },
-    {
-        'neon',
-        'rbxassetid://18498709246',
-    },
+    { 'starlight', 'rbxassetid://134645216613107' },
+    { 'heavenly', 'rbxassetid://139300897520961' },
+    { 'ribbon', 'rbxassetid://132069507632161' },
+    { 'sakura', 'rbxassetid://81755778619404' },
+    { 'angel', 'rbxassetid://97658130917593' },
+    { 'wind', 'rbxassetid://80694081850877' },
+    { 'flow', 'rbxassetid://119913533725648' },
+    { 'star', 'rbxassetid://73754563740680' },
+    { 'neon', 'rbxassetid://18498709246' },
 }
+
 local PARTICLE_AURA_NAMES = {}
 local particleAuraIdByName = {}
 
-for _, row in ipairs(PARTICLE_AURA_DATA)do
+for _, row in ipairs(PARTICLE_AURA_DATA) do
     table.insert(PARTICLE_AURA_NAMES, row[1])
-
-    particleAuraIdByName[row[1] ] = row[2]
+    particleAuraIdByName[row[1]] = row[2]
 end
 
 local loadedParticleAuras, activeParticleAuras = {}, {}
+
 local MINECRAFT_VARIANTS = {
-    Brick = {
-        BaseMaterial = Enum.Material.Brick,
-        Texture = 'rbxassetid://10777285622',
-    },
-    Concrete = {
-        BaseMaterial = Enum.Material.Concrete,
-        Texture = 'rbxassetid://15622710576',
-    },
-    CorrodedMetal = {
-        BaseMaterial = Enum.Material.CorrodedMetal,
-        Texture = 'rbxassetid://78612695839404',
-    },
-    Grass = {
-        BaseMaterial = Enum.Material.Grass,
-        Texture = 'rbxassetid://9267183930',
-    },
-    Metal = {
-        BaseMaterial = Enum.Material.Metal,
-        Texture = 'rbxassetid://121650613091353',
-    },
-    Sand = {
-        BaseMaterial = Enum.Material.Sand,
-        Texture = 'rbxassetid://12624140843',
-    },
-    Slate = {
-        BaseMaterial = Enum.Material.Slate,
-        Texture = 'rbxassetid://8676746437',
-    },
-    Wood = {
-        BaseMaterial = Enum.Material.Wood,
-        Texture = 'rbxassetid://3258599312',
-    },
-    WoodPlanks = {
-        BaseMaterial = Enum.Material.WoodPlanks,
-        Texture = 'rbxassetid://8676581022',
-    },
+    Brick = { BaseMaterial = Enum.Material.Brick, Texture = 'rbxassetid://10777285622' },
+    Concrete = { BaseMaterial = Enum.Material.Concrete, Texture = 'rbxassetid://15622710576' },
+    CorrodedMetal = { BaseMaterial = Enum.Material.CorrodedMetal, Texture = 'rbxassetid://78612695839404' },
+    Grass = { BaseMaterial = Enum.Material.Grass, Texture = 'rbxassetid://9267183930' },
+    Metal = { BaseMaterial = Enum.Material.Metal, Texture = 'rbxassetid://121650613091353' },
+    Sand = { BaseMaterial = Enum.Material.Sand, Texture = 'rbxassetid://12624140843' },
+    Slate = { BaseMaterial = Enum.Material.Slate, Texture = 'rbxassetid://8676746437' },
+    Wood = { BaseMaterial = Enum.Material.Wood, Texture = 'rbxassetid://3258599312' },
+    WoodPlanks = { BaseMaterial = Enum.Material.WoodPlanks, Texture = 'rbxassetid://8676581022' },
 }
+
 local MATERIAL_VARIANT_BY_MATERIAL = {
     [Enum.Material.Brick] = 'Brick',
     [Enum.Material.Concrete] = 'Concrete',
@@ -319,6 +248,7 @@ local MATERIAL_VARIANT_BY_MATERIAL = {
     [Enum.Material.Wood] = 'Wood',
     [Enum.Material.WoodPlanks] = 'WoodPlanks',
 }
+
 local MINECRAFT_TERRAIN_COLORS = {
     [Enum.Material.Grass] = Color3.fromRGB(106, 170, 64),
     [Enum.Material.Ground] = Color3.fromRGB(134, 96, 67),
@@ -329,10 +259,10 @@ local MINECRAFT_TERRAIN_COLORS = {
     [Enum.Material.Snow] = Color3.fromRGB(245, 245, 245),
     [Enum.Material.Water] = Color3.fromRGB(63, 118, 228),
 }
-local LarpticTextureState = setmetatable({}, {
-    __mode = 'k',
-})
+
+local LarpticTextureState = setmetatable({}, { __mode = 'k' })
 local LarpticMaterialVariantsBuilt = false
+
 local SkyboxAssets = {
     ['Black Storm'] = {
         Bk = 'rbxassetid://15502511288',
@@ -447,6 +377,7 @@ local SkyboxAssets = {
         Up = 'rbxassetid://15983964246',
     },
 }
+
 local HatVariables = {
     enabled = false,
     style = 'Classic',
@@ -461,6 +392,7 @@ local HatVariables = {
     parts = {},
     connection = nil,
 }
+
 local tau = math.pi * 2
 local drawings = {}
 
@@ -487,11 +419,13 @@ local TrailVariables = {
     parts = {},
     connection = nil,
 }
+
 local AuraTrailerVariables = {
     enabled = false,
     color = Color3.fromRGB(255, 0, 0),
     lifetime = 0.5,
 }
+
 local ForceFieldVariables = {
     enabled = false,
     color = Color3.fromRGB(128, 128, 128),
@@ -499,6 +433,7 @@ local ForceFieldVariables = {
     originalColors = {},
     connection = nil,
 }
+
 local WorldVariables = {
     screenEnabled = false,
     screenIntensity = 0,
@@ -507,22 +442,27 @@ local WorldVariables = {
     timeValue = 12,
     fullBrightEnabled = false,
 }
+
 local NebulaVariables = {
     enabled = false,
     themeColor = Color3.fromRGB(173, 216, 230),
 }
+
 local SkyboxVariables = {
     current = 'HD',
     customEnabled = false,
 }
+
 local AnimeVariables = {
     enabled = false,
     gui = nil,
 }
+
 local FPSVariables = {
     fpsPing1Enabled = false,
     fpsPing2Enabled = false,
 }
+
 local LarpticAtmosphere = nil
 local ClassicAuraEnabled = false
 local ClassicAuraSelected = {}
@@ -530,6 +470,7 @@ local ParticleAuraEnabled = false
 local ParticleAuraSelected = {}
 local ParticleAuraColor = Color3.fromRGB(133, 220, 255)
 local TexturePackEnabled = false
+
 local Features = {
     Connections = {},
     Highlights = {},
@@ -541,9 +482,66 @@ local Features = {
     BombJumpOnCooldown = false,
 }
 
+-- ==================== HITSOUND SYSTEM ====================
+local gunshotSounds = {
+    ["Alchemist Burst"] = "rbxassetid://130507807370367",
+    ["RPGS Candy"] = "rbxassetid://83995181532586",
+    ["RPGE Beary"] = "rbxassetid://112424028680133",
+    ["DB Bloss"] = "rbxassetid://97681259004692",
+    ["Rev Blossom"] = "rbxassetid://118868788824782",
+    ["Kawaii DG"] = "rbxassetid://135458839245691",
+    ["Hit Basic 3"] = "rbxassetid://90160800327080",
+}
+
+local knifeKillSounds = {
+    ["S3 Coin Hit"] = "rbxassetid://139857881082762",
+    ["Custom Hit 1"] = "rbxassetid://138592514473573",
+    ["Golden Knife Kill"] = "rbxassetid://6066375795",
+    ["Among Us"] = "rbxassetid://130456049552264",
+    ["Jeff Laugh"] = "rbxassetid://140445930084397",
+    ["Pelmeni"] = "rbxassetid://130226230760992",
+    ["Horror Kill"] = "rbxassetid://128741351184513",
+    ["Jeff Stab"] = "rbxassetid://81483362340487",
+}
+
+local selectedGunshot = "RPGS Candy"
+local selectedKnifeKill = "Golden Knife Kill"
+local hooked = {}
+
+local function hookSound(sound)
+    if not sound:IsA("Sound") or hooked[sound] then
+        return
+    end
+    hooked[sound] = true
+
+    sound.Played:Connect(function()
+        if sound.Name == "Gunshot" and gunshotSounds[selectedGunshot] and sound.SoundId ~= gunshotSounds[selectedGunshot] then
+            sound.SoundId = gunshotSounds[selectedGunshot]
+            sound.TimePosition = 0
+            sound:Play()
+        elseif sound.Name == "Kill" and knifeKillSounds[selectedKnifeKill] and sound.SoundId ~= knifeKillSounds[selectedKnifeKill] then
+            sound.SoundId = knifeKillSounds[selectedKnifeKill]
+            sound.TimePosition = 0
+            sound:Play()
+        end
+    end)
+end
+
+workspace.DescendantAdded:Connect(function(d)
+    if d:IsA("Sound") and (d.Name == "Gunshot" or d.Name == "Kill") then
+        hookSound(d)
+    end
+end)
+
+for _, d in ipairs(workspace:GetDescendants()) do
+    if d:IsA("Sound") and (d.Name == "Gunshot" or d.Name == "Kill") then
+        hookSound(d)
+    end
+end
+-- ==================== END HITSOUND ====================
+
 local function addConn(conn)
     table.insert(Features.Connections, conn)
-
     return conn
 end
 
@@ -553,72 +551,59 @@ function Util:Tween(obj, props, duration, style, direction)
     if not obj then
         return
     end
-
     duration = duration or Config.Anim.Normal
     style = style or Enum.EasingStyle.Quad
     direction = direction or Enum.EasingDirection.Out
-
     local tween = TweenService:Create(obj, TweenInfo.new(duration, style, direction), props)
-
     tween:Play()
-
     return tween
 end
+
 function Util:Corner(obj, radius)
     local corner = Instance.new('UICorner')
-
     corner.CornerRadius = UDim.new(0, radius or 8)
     corner.Parent = obj
-
     return corner
 end
+
 function Util:Stroke(obj, thickness, color, transparency)
     local stroke = Instance.new('UIStroke')
-
     stroke.Thickness = thickness or 1
     stroke.Color = color or Config.Color.Accent.White
     stroke.Transparency = transparency or 0.8
     stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     stroke.Parent = obj
-
     return stroke
 end
+
 function Util:Gradient(obj, colorSeq, rotation)
     local gradient = Instance.new('UIGradient')
-
     gradient.Color = colorSeq or ColorSequence.new{
         ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 180, 180)),
     }
     gradient.Rotation = rotation or 90
     gradient.Parent = obj
-
     return gradient
 end
+
 function Util:Ripple(button)
     button.ClipsDescendants = true
-
     button.MouseButton1Down:Connect(function()
         local ripple = Instance.new('Frame')
-
         ripple.AnchorPoint = Vector2.new(0.5, 0.5)
         ripple.BackgroundColor3 = Config.Color.Accent.White
         ripple.BackgroundTransparency = 0.5
         ripple.Size = UDim2.new(0, 0, 0, 0)
         ripple.ZIndex = button.ZIndex + 100
         ripple.BorderSizePixel = 0
-
         local mousePos = UserInputService:GetMouseLocation()
         local buttonPos = button.AbsolutePosition
         local relPos = mousePos - buttonPos
-
         ripple.Position = UDim2.new(0, relPos.X, 0, relPos.Y)
         ripple.Parent = button
-
         Util:Corner(ripple, 999)
-
         local size = math.max(button.AbsoluteSize.X, button.AbsoluteSize.Y) * 2.5
-
         Util:Tween(ripple, {
             Size = UDim2.new(0, size, 0, size),
             BackgroundTransparency = 1,
@@ -628,20 +613,22 @@ function Util:Ripple(button)
         end)
     end)
 end
+
 function Util:GetGameName()
     return game.PlaceId == 142823291 and 'MM2' or 'MMV'
 end
+
 function Util:GetPlayerName()
     local name = LocalPlayer.DisplayName or LocalPlayer.Name
-
     return #name > 12 and name:sub(1, 10) .. '..' or name
 end
+
 function Util:Clamp(val, min, max)
     return math.max(min, math.min(max, val))
 end
+
 function Util:Round(num, decimals)
     local mult = 10 ^ (decimals or 0)
-
     return math.floor(num * mult + 0.5) / mult
 end
 
@@ -655,31 +642,24 @@ local FPS = {
 
 function FPS:Update()
     self.frames = self.frames + 1
-
     local now = tick()
-
     if now - self.lastUpdate >= 0.5 then
         local instant = self.frames / (now - self.lastUpdate)
-
         table.insert(self.history, instant)
-
         if #self.history > self.maxHistory then
             table.remove(self.history, 1)
         end
-
         local sum = 0
-
-        for _, fps in ipairs(self.history)do
+        for _, fps in ipairs(self.history) do
             sum = sum + fps
         end
-
         self.current = math.floor(sum / #self.history)
         self.frames = 0
         self.lastUpdate = now
     end
-
     return self.current
 end
+
 function FPS:GetColor()
     if self.current >= 55 then
         return Config.Color.State.Success
@@ -709,25 +689,18 @@ function Snow:Create(parent)
     self.container.ClipsDescendants = true
     self.container.ZIndex = 5
     self.container.Parent = parent
-
     for i = 1, self.count do
         local flake = Instance.new('Frame')
-
         flake.AnchorPoint = Vector2.new(0.5, 0.5)
-
         local size = math.random(2, 5)
-
         flake.Size = UDim2.new(0, size, 0, size)
         flake.Position = UDim2.new(math.random(), 0, math.random(), 0)
         flake.BackgroundColor3 = Config.Color.Accent.White
         flake.BackgroundTransparency = math.random(60, 85) / 100
         flake.BorderSizePixel = 0
         flake.ZIndex = 6
-
         Util:Corner(flake, 999)
-
         flake.Parent = self.container
-
         table.insert(self.particles, {
             frame = flake,
             speed = math.random(30, 100) / 1000,
@@ -737,68 +710,56 @@ function Snow:Create(parent)
             rotSpeed = math.random(-2, 2),
         })
     end
-
     self.active = true
-
     self:Animate()
 end
+
 function Snow:Animate()
     local time = 0
-
     RunService.RenderStepped:Connect(function(dt)
         if not self.active then
             return
         end
-
         time = time + dt
-
-        for _, p in ipairs(self.particles)do
+        for _, p in ipairs(self.particles) do
             if not p.frame.Parent then
                 continue
             end
-
             local pos = p.frame.Position
             local newY = pos.Y.Scale + p.speed * dt
-
             if newY > 1.1 then
                 p.frame.Position = UDim2.new(math.random(), 0, -0.1, 0)
             else
                 local swayX = math.sin(time * 2 + p.offset) * (p.sway / 1000)
-
                 p.frame.Position = UDim2.new(pos.X.Scale + swayX, 0, newY, 0)
             end
-
             p.rotation = p.rotation + p.rotSpeed
             p.frame.Rotation = p.rotation
         end
     end)
 end
+
 function Snow:Toggle(state)
     self.active = state
-
     if self.container then
         self.container.Visible = state
     end
 end
+
 function Snow:Destroy()
     self.active = false
-
     if self.container then
         self.container:Destroy()
     end
-
     self.particles = {}
 end
 
 local function applyHighlight(player, color)
     local character = player.Character
-
     if not character then
         return
     end
-
     local highlight = character:FindFirstChild('CandyZone_ESP')
-
     if not highlight then
         highlight = Instance.new('Highlight')
         highlight.Name = 'CandyZone_ESP'
@@ -814,27 +775,25 @@ local function applyHighlight(player, color)
         highlight.OutlineColor = color
     end
 end
+
 local function removeHighlight(player)
     local character = player.Character
-
     if character then
         local highlight = character:FindFirstChild('CandyZone_ESP')
-
         if highlight then
             highlight:Destroy()
         end
     end
-
     Features.Highlights[player] = nil
 end
+
 local function updateESP()
-    for _, player in ipairs(Players:GetPlayers())do
+    for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local bp = player:FindFirstChild('Backpack')
             local hasKnife = (player.Character:FindFirstChild('Knife')) or (bp and bp:FindFirstChild('Knife'))
             local hasGun = (player.Character:FindFirstChild('Gun') or player.Character:FindFirstChild('Revolver')) or (bp and (bp:FindFirstChild('Gun') or bp:FindFirstChild('Revolver')))
             local color = nil
-
             if hasKnife and Config.Settings.ESP.Murder then
                 color = Config.Settings.Colors.MurderESP
             elseif hasGun and Config.Settings.ESP.Sheriff then
@@ -866,11 +825,9 @@ addConn(RunService.Stepped:Connect(function()
     if not Config.Settings.Rage.Noclip then
         return
     end
-
     local char = LocalPlayer.Character
-
     if char then
-        for _, part in ipairs(char:GetDescendants())do
+        for _, part in ipairs(char:GetDescendants()) do
             if part:IsA('BasePart') then
                 part.CanCollide = false
             end
@@ -882,11 +839,9 @@ local flyBV, flyBG
 
 local function setFly(state)
     Config.Settings.Rage.Fly = state
-
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild('HumanoidRootPart')
     local hum = char and char:FindFirstChildOfClass('Humanoid')
-
     if state and hrp and hum then
         if flyBV then
             flyBV:Destroy()
@@ -894,7 +849,6 @@ local function setFly(state)
         if flyBG then
             flyBG:Destroy()
         end
-
         flyBV = Instance.new('BodyVelocity')
         flyBV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
         flyBV.Velocity = Vector3.new(0, 0, 0)
@@ -907,12 +861,10 @@ local function setFly(state)
     else
         if flyBV then
             flyBV:Destroy()
-
             flyBV = nil
         end
         if flyBG then
             flyBG:Destroy()
-
             flyBG = nil
         end
         if hum then
@@ -925,17 +877,13 @@ addConn(RunService.RenderStepped:Connect(function()
     if not Config.Settings.Rage.Fly then
         return
     end
-
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild('HumanoidRootPart')
     local cam = workspace.CurrentCamera
-
     if not hrp or not cam or not flyBV then
         return
     end
-
     local dir = Vector3.new(0, 0, 0)
-
     if UserInputService:IsKeyDown(Enum.KeyCode.W) then
         dir = dir + cam.CFrame.LookVector
     end
@@ -957,24 +905,21 @@ addConn(RunService.RenderStepped:Connect(function()
     if dir.Magnitude > 0 then
         dir = dir.Unit * (Config.Settings.Rage.FlySpeed or 50)
     end
-
     flyBV.Velocity = dir
-
     if flyBG then
         flyBG.CFrame = cam.CFrame
     end
 end))
+
 addConn(RunService.Heartbeat:Connect(function(dt)
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChildOfClass('Humanoid')
     local hrp = char and char:FindFirstChild('HumanoidRootPart')
-
     if not hrp or not hum then
         return
     end
     if Config.Settings.Rage.SpeedGlitch and hum.MoveDirection.Magnitude > 0 then
         local slideVector = Vector3.new(hum.MoveDirection.X, 0, hum.MoveDirection.Z).Unit
-
         hrp.CFrame = hrp.CFrame + (slideVector * (Config.Settings.Rage.SpeedForce * dt))
     end
     if Config.Settings.Rage.Bhop and hum:GetState() ~= Enum.HumanoidStateType.Freefall then
@@ -984,14 +929,13 @@ addConn(RunService.Heartbeat:Connect(function(dt)
         end
     end
 end))
+
 addConn(RunService.RenderStepped:Connect(function()
     if not Config.Settings.Rage.SpinBot then
         return
     end
-
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild('HumanoidRootPart')
-
     if hrp then
         hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(Config.Settings.Rage.SpinSpeed or 50), 0)
     end
@@ -1002,17 +946,14 @@ local function flingPlayer(targetPlayer)
     local Humanoid = Character and Character:FindFirstChildOfClass('Humanoid')
     local RootPart = Humanoid and Humanoid.RootPart or (Character and Character:FindFirstChild('HumanoidRootPart'))
     local TCharacter = targetPlayer.Character
-
     if not TCharacter then
         return
     end
-
     local THumanoid = TCharacter:FindFirstChildOfClass('Humanoid')
     local TRootPart = THumanoid and THumanoid.RootPart or TCharacter:FindFirstChild('HumanoidRootPart')
     local THead = TCharacter:FindFirstChild('Head')
     local Accessory = TCharacter:FindFirstChildOfClass('Accessory')
     local Handle = Accessory and Accessory:FindFirstChild('Handle')
-
     if Character and Humanoid and RootPart then
         if RootPart.Velocity.Magnitude < 50 then
             Features.OldPos = RootPart.CFrame
@@ -1030,12 +971,9 @@ local function flingPlayer(targetPlayer)
         if not TCharacter:FindFirstChildWhichIsA('BasePart') then
             return
         end
-
         local FPos = function(BasePart, Pos, Ang)
             RootPart.CFrame = CFrame.new(BasePart.Position) * Pos * Ang
-
             Character:SetPrimaryPartCFrame(CFrame.new(BasePart.Position) * Pos * Ang)
-
             RootPart.Velocity = Vector3.new(9e7, 9E8, 9e7)
             RootPart.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
         end
@@ -1043,12 +981,10 @@ local function flingPlayer(targetPlayer)
             local TimeToWait = 2
             local Time = tick()
             local Angle = 0
-
             repeat
                 if RootPart and THumanoid then
                     if BasePart.Velocity.Magnitude < 50 then
                         Angle = Angle + 100
-
                         FPos(BasePart, CFrame.new(0, 1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
                         task.wait()
                         FPos(BasePart, CFrame.new(0, -1.5, 0) + THumanoid.MoveDirection * BasePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(Angle), 0, 0))
@@ -1080,17 +1016,12 @@ local function flingPlayer(targetPlayer)
                 end
             until Time + TimeToWait < tick()
         end
-
         workspace.FallenPartsDestroyHeight = 0 / 0
-
         local BV = Instance.new('BodyVelocity')
-
         BV.Parent = RootPart
         BV.Velocity = Vector3.new()
         BV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-
         Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
-
         if TRootPart then
             SFBasePart(TRootPart)
         elseif THead then
@@ -1098,88 +1029,74 @@ local function flingPlayer(targetPlayer)
         elseif Handle then
             SFBasePart(Handle)
         end
-
         BV:Destroy()
         Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
-
         workspace.CurrentCamera.CameraSubject = Humanoid
-
         if Features.OldPos then
             repeat
                 RootPart.CFrame = Features.OldPos * CFrame.new(0, 0.5, 0)
-
                 Character:SetPrimaryPartCFrame(Features.OldPos * CFrame.new(0, 0.5, 0))
                 Humanoid:ChangeState('GettingUp')
-
-                for _, part in pairs(Character:GetChildren())do
+                for _, part in pairs(Character:GetChildren()) do
                     if part:IsA('BasePart') then
                         part.Velocity, part.RotVelocity = Vector3.new(), Vector3.new()
                     end
                 end
-
                 task.wait()
             until (RootPart.Position - Features.OldPos.p).Magnitude < 25
-
             workspace.FallenPartsDestroyHeight = Features.FPDH
         end
     end
 end
+
 local function getMurderer()
-    for _, p in ipairs(Players:GetPlayers())do
+    for _, p in ipairs(Players:GetPlayers()) do
         if p.Character then
             local bp = p:FindFirstChild('Backpack')
-
             if (bp and bp:FindFirstChild('Knife')) or p.Character:FindFirstChild('Knife') then
                 return p
             end
         end
     end
-
     return nil
 end
+
 local function getSheriff()
-    for _, p in ipairs(Players:GetPlayers())do
+    for _, p in ipairs(Players:GetPlayers()) do
         if p.Character then
             local bp = p:FindFirstChild('Backpack')
             local hasGun = (bp and (bp:FindFirstChild('Gun') or bp:FindFirstChild('Revolver'))) or p.Character:FindFirstChild('Gun') or p.Character:FindFirstChild('Revolver')
-
             if hasGun then
                 return p
             end
         end
     end
-
     return nil
 end
+
 local function fireGun(gun, targetPosition)
     local char = LocalPlayer.Character
     local bp = LocalPlayer:FindFirstChild('Backpack')
-
     if gun.Parent == bp then
         char.Humanoid:EquipTool(gun)
         task.wait(0.05)
     end
-
     local originCF
     local gunServer = gun:FindFirstChild('GunServer')
-
     if gunServer then
         local attachment = gunServer:FindFirstChild('GunRaycastAttachment1') or gunServer:FindFirstChild('RaycastAttachment')
-
         if attachment then
             originCF = attachment.WorldCFrame
         end
     end
     if not originCF then
         local handle = gun:FindFirstChild('Handle') or gun:FindFirstChild('Gun')
-
         if handle and handle:IsA('BasePart') then
             originCF = handle.CFrame
         end
     end
     if not originCF then
         local hrp = char:FindFirstChild('HumanoidRootPart')
-
         if hrp then
             originCF = hrp.CFrame
         end
@@ -1187,15 +1104,12 @@ local function fireGun(gun, targetPosition)
     if not originCF then
         return
     end
-
     local shootRemote = gun:FindFirstChild('Shoot') or gun:FindFirstChild('Fire')
-
     if shootRemote then
         local args = {
             CFrame.new(originCF.Position, targetPosition),
             CFrame.new(targetPosition),
         }
-
         shootRemote:FireServer(unpack(args))
     else
         pcall(function()
@@ -1209,52 +1123,42 @@ local function fireGun(gun, targetPosition)
         end)
     end
 end
+
 local function shootMurdererDirect()
     local char = LocalPlayer.Character
-
     if not char then
         return
     end
-
     local gun = char:FindFirstChild('Gun') or char:FindFirstChild('Revolver')
-
     if not gun then
         local bp = LocalPlayer:FindFirstChild('Backpack')
-
         gun = bp and (bp:FindFirstChild('Gun') or bp:FindFirstChild('Revolver'))
     end
     if not gun then
         return
     end
-
     local m = getMurderer()
-
     if m and m.Character and m.Character:FindFirstChild('HumanoidRootPart') then
         fireGun(gun, m.Character.HumanoidRootPart.Position)
     end
 end
+
 local function createDraggableShootButton()
     if Features.ShootGui then
         Features.ShootGui:Destroy()
     end
-
     local sg = Instance.new('ScreenGui')
-
     sg.Name = 'CandyZone_ShootBtn'
     sg.ResetOnSpawn = false
     sg.IgnoreGuiInset = true
     sg.DisplayOrder = 999999
-
     if gethui then
         sg.Parent = gethui()
     else
         sg.Parent = CoreGui
     end
-
     Features.ShootGui = sg
-
     local btn = Instance.new('TextButton')
-
     btn.Name = 'ShootButton'
     btn.Size = UDim2.new(0, 80, 0, 80)
     btn.Position = UDim2.new(0.85, 0, 0.6, 0)
@@ -1266,12 +1170,9 @@ local function createDraggableShootButton()
     btn.Font = Enum.Font.GothamBold
     btn.AutoButtonColor = false
     btn.Parent = sg
-
     Util:Corner(btn, 12)
     Util:Stroke(btn, 2, Color3.fromRGB(0, 150, 255), 0.3)
-
     local dragging, dragStart, startPos = false, nil, nil
-
     btn.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
@@ -1282,7 +1183,6 @@ local function createDraggableShootButton()
     UserInputService.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
-
             btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
@@ -1293,7 +1193,6 @@ local function createDraggableShootButton()
     end)
     btn.MouseButton1Click:Connect(function()
         local ripple = Instance.new('Frame')
-
         ripple.AnchorPoint = Vector2.new(0.5, 0.5)
         ripple.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
         ripple.BackgroundTransparency = 0.4
@@ -1302,7 +1201,6 @@ local function createDraggableShootButton()
         ripple.ZIndex = btn.ZIndex + 1
         ripple.BorderSizePixel = 0
         ripple.Parent = btn
-
         Util:Corner(ripple, 999)
         Util:Tween(ripple, {
             Size = UDim2.new(0, 120, 0, 120),
@@ -1313,26 +1211,24 @@ local function createDraggableShootButton()
         end)
         shootMurdererDirect()
     end)
-
     Features.ShootButton = btn
 end
+
 local function removeDraggableShootButton()
     if Features.ShootGui then
         Features.ShootGui:Destroy()
-
         Features.ShootGui = nil
         Features.ShootButton = nil
     end
 end
+
 local function getCoinsOnMap()
     local coins = {}
-
-    for _, v in ipairs(workspace:GetDescendants())do
+    for _, v in ipairs(workspace:GetDescendants()) do
         if v:IsA('BasePart') and (v.Name == 'Coin_Highlight' or v.Name == 'CoinContainer' or v.Name == 'Coin') then
             table.insert(coins, v)
         end
     end
-
     return coins
 end
 
@@ -1342,55 +1238,41 @@ task.spawn(function()
             if Config.Settings.Combat.AutoFarm then
                 local char = LocalPlayer.Character
                 local hrp = char and char:FindFirstChild('HumanoidRootPart')
-
                 if hrp then
                     local coins = getCoinsOnMap()
                     local nearestCoin, minDist = nil, math.huge
-
-                    for _, coin in ipairs(coins)do
+                    for _, coin in ipairs(coins) do
                         local dist = (coin.Position - hrp.Position).Magnitude
-
                         if dist < minDist then
                             minDist = dist
                             nearestCoin = coin
                         end
                     end
-
                     if nearestCoin then
                         local stepConn
-
                         stepConn = RunService.Heartbeat:Connect(function(dt)
                             if not Config.Settings.Combat.AutoFarm or not nearestCoin or not nearestCoin.Parent or not hrp.Parent then
                                 if stepConn then
                                     stepConn:Disconnect()
                                 end
-
                                 return
                             end
-
                             local dir = (nearestCoin.Position - hrp.Position).Unit
-
                             hrp.CFrame = hrp.CFrame + (dir * (22 * dt))
-
                             if (nearestCoin.Position - hrp.Position).Magnitude < 4 then
                                 if stepConn then
                                     stepConn:Disconnect()
                                 end
                             end
                         end)
-
                         local timeout = 0
-
                         while nearestCoin and nearestCoin.Parent and Config.Settings.Combat.AutoFarm and timeout < 100 do
                             if (nearestCoin.Position - hrp.Position).Magnitude < 4 then
                                 break
                             end
-
                             task.wait(0.05)
-
                             timeout = timeout + 1
                         end
-
                         if stepConn then
                             stepConn:Disconnect()
                         end
@@ -1406,32 +1288,23 @@ local function executeBombJump()
     if Features.BombJumpOnCooldown then
         return
     end
-
     local char = LocalPlayer.Character
-
     if not char then
         return
     end
-
     local hrp = char:FindFirstChild('HumanoidRootPart')
     local hum = char:FindFirstChildOfClass('Humanoid')
-
     if not hrp or not hum then
         return
     end
-
     local hasBomb = char:FindFirstChild('FakeBomb') or (LocalPlayer:FindFirstChild('Backpack') and LocalPlayer.Backpack:FindFirstChild('FakeBomb'))
-
     if not hasBomb then
         pcall(function()
             local remotes = ReplicatedStorage:FindFirstChild('Remotes', true)
-
             if remotes then
                 local extras = remotes:FindFirstChild('Extras', true)
-
                 if extras then
                     local replicate = extras:FindFirstChild('ReplicateToy')
-
                     if replicate then
                         replicate:InvokeServer('FakeBomb')
                     end
@@ -1440,34 +1313,26 @@ local function executeBombJump()
         end)
         task.wait(0.3)
     end
-
     Features.BombJumpOnCooldown = true
-
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
-
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 120, hrp.Velocity.Z)
-
     local bomb = char:FindFirstChild('FakeBomb')
-
     if bomb and bomb:IsA('Tool') then
         pcall(function()
             bomb:Activate()
         end)
     end
-
     task.delay(1.2, function()
         Features.BombJumpOnCooldown = false
     end)
 end
+
 local function killAll()
     local char = LocalPlayer.Character
-
     if not char then
         return
     end
-
     local knife = char:FindFirstChild('Knife') or (LocalPlayer:FindFirstChild('Backpack') and LocalPlayer.Backpack:FindFirstChild('Knife'))
-
     if not knife then
         return
     end
@@ -1475,20 +1340,15 @@ local function killAll()
         char.Humanoid:EquipTool(knife)
         task.wait(0.05)
     end
-
-    for _, victim in ipairs(Players:GetPlayers())do
+    for _, victim in ipairs(Players:GetPlayers()) do
         if victim ~= LocalPlayer and victim.Character and victim.Character:FindFirstChild('HumanoidRootPart') then
             local vHum = victim.Character:FindFirstChildOfClass('Humanoid')
-
             if vHum and vHum.Health > 0 then
                 local dist = (char.HumanoidRootPart.Position - victim.Character.HumanoidRootPart.Position).Magnitude
-
                 if dist <= 30 then
                     pcall(function()
                         knife:Activate()
-
                         local targetPart = victim.Character:FindFirstChild('HumanoidRootPart') or victim.Character:FindFirstChild('Torso') or victim.Character:FindFirstChild('UpperTorso')
-
                         if targetPart and firetouchinterest then
                             firetouchinterest(targetPart, knife.Handle, 0)
                             firetouchinterest(targetPart, knife.Handle, 1)
@@ -1505,7 +1365,6 @@ task.spawn(function()
         if Config.Settings.Combat.AutoKillAll then
             pcall(killAll)
         end
-
         task.wait(0.15)
     end
 end)
@@ -1513,38 +1372,29 @@ end)
 local function Hat_RemoveClassic()
     if HatVariables.parts[LocalPlayer.Character] then
         HatVariables.parts[LocalPlayer.Character]:Destroy()
-
         HatVariables.parts[LocalPlayer.Character] = nil
     end
 end
+
 local function Hat_AddClassic(char)
     task.wait(0.1)
-
     local head = char:WaitForChild('Head', 5)
-
     if not head then
         return
     end
-
     Hat_RemoveClassic()
-
     local hat = Instance.new('Part')
-
     hat.Name = 'ChineseHat'
     hat.Transparency = HatVariables.transparency
     hat.Color = HatVariables.color
     hat.Material = Enum.Material.Neon
     hat.CanCollide = false
     hat.Reflectance = HatVariables.reflectance
-
     local mesh = Instance.new('SpecialMesh')
-
     mesh.MeshId = 'rbxassetid://1033714'
     mesh.Scale = Vector3.new(HatVariables.radius, HatVariables.height, HatVariables.radius)
     mesh.Parent = hat
-
     local weld = Instance.new('WeldConstraint')
-
     weld.Part0 = head
     weld.Part1 = hat
     weld.Parent = hat
@@ -1552,41 +1402,36 @@ local function Hat_AddClassic(char)
     hat.Parent = char
     HatVariables.parts[char] = hat
 end
+
 local function Hat_UpdateClassic()
-    for char, hat in pairs(HatVariables.parts)do
+    for char, hat in pairs(HatVariables.parts) do
         if hat and hat.Parent and char == LocalPlayer.Character then
             hat.Transparency = HatVariables.transparency
             hat.Reflectance = HatVariables.reflectance
-
             if HatVariables.rainbow then
                 hat.Color = Color3.fromHSV(tick() % HatVariables.rainbowSpeed / HatVariables.rainbowSpeed, 1, 1)
             else
                 hat.Color = HatVariables.color
             end
-
             local mesh = hat:FindFirstChildOfClass('SpecialMesh')
-
             if mesh then
                 mesh.Scale = Vector3.new(HatVariables.radius, HatVariables.height, HatVariables.radius)
             end
         end
     end
 end
+
 local function Hat_UpdateDrawing()
     local pass = HatVariables.enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('Head') and (camera.CFrame.p - camera.Focus.p).magnitude > 1 and LocalPlayer.Character.Humanoid.Health > 0
-
     for i = 1, #drawings do
         local line, triangle = drawings[i][1], drawings[i][2]
-
         if pass and HatVariables.style == 'Drawing' then
             local color
-
             if HatVariables.rainbow then
                 color = Color3.fromHSV((tick() % HatVariables.rainbowSpeed / HatVariables.rainbowSpeed - (i / #drawings)) % 1, 0.5, 1)
             else
                 color = HatVariables.color
             end
-
             local pos = LocalPlayer.Character.Head.Position + Vector3.new(0, 0.75, 0)
             local topWorld = pos + Vector3.new(0, 0.75, 0)
             local last, next = (i / HatVariables.sides) * tau, ((i + 1) / HatVariables.sides) * tau
@@ -1595,7 +1440,6 @@ local function Hat_UpdateDrawing()
             local lastScreen = camera:WorldToViewportPoint(lastWorld)
             local nextScreen = camera:WorldToViewportPoint(nextWorld)
             local topScreen = camera:WorldToViewportPoint(topWorld)
-
             line.From = Vector2.new(lastScreen.X, lastScreen.Y)
             line.To = Vector2.new(nextScreen.X, nextScreen.Y)
             line.Color = color
@@ -1612,9 +1456,9 @@ local function Hat_UpdateDrawing()
         end
     end
 end
+
 local function Hat_ToggleEnabled(value)
     HatVariables.enabled = value
-
     if value then
         if HatVariables.style == 'Classic' and LocalPlayer.Character then
             Hat_AddClassic(LocalPlayer.Character)
@@ -1630,45 +1474,38 @@ local function Hat_ToggleEnabled(value)
         end
     else
         Hat_RemoveClassic()
-
         for i = 1, #drawings do
             drawings[i][1].Visible = false
             drawings[i][2].Visible = false
         end
-
         if HatVariables.connection then
             HatVariables.connection:Disconnect()
-
             HatVariables.connection = nil
         end
     end
 end
+
 local function Hat_ChangeStyle(value)
     HatVariables.style = value
-
     if HatVariables.enabled then
         Hat_RemoveClassic()
-
         for i = 1, #drawings do
             drawings[i][1].Visible = false
             drawings[i][2].Visible = false
         end
-
         if value == 'Classic' and LocalPlayer.Character then
             Hat_AddClassic(LocalPlayer.Character)
         end
     end
 end
+
 local function Hat_UpdateSides(value)
     HatVariables.sides = value
-
     for i = 1, #drawings do
         drawings[i][1]:Remove()
         drawings[i][2]:Remove()
     end
-
     drawings = {}
-
     for i = 1, value do
         drawings[i] = {
             Drawing.new('Line'),
@@ -1680,31 +1517,27 @@ local function Hat_UpdateSides(value)
         drawings[i][2].Filled = true
     end
 end
+
 local function Trail_RemoveFromCharacter(char)
     if TrailVariables.parts[char] then
-        for _, t in ipairs(TrailVariables.parts[char])do
+        for _, t in ipairs(TrailVariables.parts[char]) do
             if t then
                 t:Destroy()
             end
         end
-
         TrailVariables.parts[char] = nil
     end
 end
+
 local function Trail_AddToCharacter(char)
     Trail_RemoveFromCharacter(char)
-
     local hrp = char:FindFirstChild('HumanoidRootPart')
-
     if not hrp then
         return
     end
-
     local trails = {}
-
     local function makeTrail(attach0, attach1)
         local trail = Instance.new('Trail')
-
         trail.Attachment0 = attach0
         trail.Attachment1 = attach1
         trail.Lifetime = TrailVariables.lifetime
@@ -1714,22 +1547,15 @@ local function Trail_AddToCharacter(char)
         })
         trail.FaceCamera = true
         trail.Parent = hrp
-
         return trail
     end
-
     local a0 = Instance.new('Attachment')
-
     a0.Position = Vector3.new(0, 1, 0)
     a0.Parent = hrp
-
     local a1 = Instance.new('Attachment')
-
     a1.Position = Vector3.new(0, -1, 0)
     a1.Parent = hrp
-
     local trail = makeTrail(a0, a1)
-
     if TrailVariables.isGradient then
         trail.Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0, TrailVariables.gradient1),
@@ -1739,23 +1565,21 @@ local function Trail_AddToCharacter(char)
     else
         trail.Color = ColorSequence.new(TrailVariables.colorStatic)
     end
-
     table.insert(trails, trail)
     table.insert(trails, a0)
     table.insert(trails, a1)
-
     TrailVariables.parts[char] = trails
 end
+
 local function Trail_UpdateAll()
-    for char, parts in pairs(TrailVariables.parts)do
-        for _, t in ipairs(parts)do
+    for char, parts in pairs(TrailVariables.parts) do
+        for _, t in ipairs(parts) do
             if t:IsA('Trail') then
                 t.Lifetime = TrailVariables.lifetime
                 t.Transparency = NumberSequence.new({
                     NumberSequenceKeypoint.new(0, TrailVariables.transparencyStart),
                     NumberSequenceKeypoint.new(1, 1),
                 })
-
                 if TrailVariables.isGradient then
                     t.Color = ColorSequence.new({
                         ColorSequenceKeypoint.new(0, TrailVariables.gradient1),
@@ -1768,9 +1592,9 @@ local function Trail_UpdateAll()
         end
     end
 end
+
 local function Trail_ToggleEnabled(value)
     TrailVariables.enabled = value
-
     if value and LocalPlayer.Character then
         Trail_AddToCharacter(LocalPlayer.Character)
     else
@@ -1779,41 +1603,42 @@ local function Trail_ToggleEnabled(value)
         end
     end
 end
+
 local function ForceField_Apply(char)
-    for _, part in ipairs(char:GetDescendants())do
+    for _, part in ipairs(char:GetDescendants()) do
         if part:IsA('BasePart') and part.Name ~= 'HumanoidRootPart' then
             if not ForceFieldVariables.originalColors[part] then
                 ForceFieldVariables.originalColors[part] = part.Color
             end
-
             part.Material = Enum.Material.ForceField
             part.Color = ForceFieldVariables.rainbow and Color3.fromHSV(tick() % 5 / 5, 1, 1) or ForceFieldVariables.color
         end
     end
 end
+
 local function ForceField_Remove(char)
-    for _, part in ipairs(char:GetDescendants())do
+    for _, part in ipairs(char:GetDescendants()) do
         if part:IsA('BasePart') and ForceFieldVariables.originalColors[part] then
             part.Material = Enum.Material.Plastic
             part.Color = ForceFieldVariables.originalColors[part]
         end
     end
 end
+
 local function ForceField_Update()
     if ForceFieldVariables.enabled and LocalPlayer.Character then
         ForceField_Apply(LocalPlayer.Character)
     end
 end
+
 local function ForceField_ToggleEnabled(value)
     ForceFieldVariables.enabled = value
-
     if value and LocalPlayer.Character then
         ForceField_Apply(LocalPlayer.Character)
-
         if not ForceFieldVariables.connection then
             ForceFieldVariables.connection = RunService.Heartbeat:Connect(function()
                 if ForceFieldVariables.rainbow and ForceFieldVariables.enabled and LocalPlayer.Character then
-                    for _, part in ipairs(LocalPlayer.Character:GetDescendants())do
+                    for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
                         if part:IsA('BasePart') and part.Material == Enum.Material.ForceField then
                             part.Color = Color3.fromHSV(tick() % 5 / 5, 1, 1)
                         end
@@ -1827,44 +1652,33 @@ local function ForceField_ToggleEnabled(value)
         end
         if ForceFieldVariables.connection then
             ForceFieldVariables.connection:Disconnect()
-
             ForceFieldVariables.connection = nil
         end
     end
 end
+
 local function AuraTrailer_Toggle(value)
     AuraTrailerVariables.enabled = value
-
     local char = LocalPlayer.Character
-
     if not char then
         return
     end
-
     local hrp = char:FindFirstChild('HumanoidRootPart')
-
     if not hrp then
         return
     end
-
     local existing = hrp:FindFirstChild('CandyAuraTrailer')
-
     if existing then
         existing:Destroy()
     end
     if value then
         local att0 = Instance.new('Attachment')
-
         att0.Name = 'CandyAuraTrailer'
         att0.Parent = hrp
-
         local att1 = Instance.new('Attachment')
-
         att1.Position = Vector3.new(0, -2, 0)
         att1.Parent = hrp
-
         local trail = Instance.new('Trail')
-
         trail.Attachment0 = att0
         trail.Attachment1 = att1
         trail.Color = ColorSequence.new(AuraTrailerVariables.color)
@@ -1873,18 +1687,20 @@ local function AuraTrailer_Toggle(value)
         trail.Parent = hrp
     end
 end
+
 local function AuraTrailer_Update()
     if AuraTrailerVariables.enabled then
         AuraTrailer_Toggle(true)
     end
 end
+
+-- ==================== FIXED CLASSIC AURA ====================
 local function ClassicAura_RefreshAll()
-    for _, model in pairs(activeClassicAuras)do
+    for _, model in pairs(activeClassicAuras) do
         if model then
             model:Destroy()
         end
     end
-
     activeClassicAuras = {}
 
     if not ClassicAuraEnabled or not LocalPlayer.Character then
@@ -1892,31 +1708,38 @@ local function ClassicAura_RefreshAll()
     end
 
     local hrp = LocalPlayer.Character:FindFirstChild('HumanoidRootPart')
-
     if not hrp then
         return
     end
 
-    for name, selected in pairs(ClassicAuraSelected)do
+    for name, selected in pairs(ClassicAuraSelected) do
         if selected and AuraModelIDs[name] then
             local success, model = pcall(function()
                 return game:GetObjects(AuraModelIDs[name])[1]
             end)
 
             if success and model then
+                -- Правильное позиционирование
+                model:PivotTo(hrp.CFrame)
                 model.Parent = LocalPlayer.Character
 
-                for _, p in ipairs(model:GetDescendants())do
+                for _, p in ipairs(model:GetDescendants()) do
                     if p:IsA('BasePart') then
                         p.CanCollide = false
                         p.Anchored = false
+                        p.Massless = true          -- критично
+                        p.CastShadow = false
+                        p.Transparency = p.Transparency
 
                         local w = Instance.new('WeldConstraint')
-
                         w.Part0 = hrp
                         w.Part1 = p
                         w.Parent = p
                     end
+                end
+
+                if model.PrimaryPart then
+                    model:SetPrimaryPartCFrame(hrp.CFrame)
                 end
 
                 table.insert(activeClassicAuras, model)
@@ -1924,33 +1747,27 @@ local function ClassicAura_RefreshAll()
         end
     end
 end
+-- ==================== END FIXED CLASSIC AURA ====================
+
 local function ParticleAura_RefreshAll()
-    for _, a in pairs(activeParticleAuras)do
+    for _, a in pairs(activeParticleAuras) do
         if a then
             a:Destroy()
         end
     end
-
     activeParticleAuras = {}
-
     if not ParticleAuraEnabled or not LocalPlayer.Character then
         return
     end
-
     local hrp = LocalPlayer.Character:FindFirstChild('HumanoidRootPart')
-
     if not hrp then
         return
     end
-
-    for name, selected in pairs(ParticleAuraSelected)do
+    for name, selected in pairs(ParticleAuraSelected) do
         if selected and particleAuraIdByName[name] then
             local att = Instance.new('Attachment')
-
             att.Parent = hrp
-
             local pe = Instance.new('ParticleEmitter')
-
             pe.Texture = particleAuraIdByName[name]
             pe.Color = ColorSequence.new(ParticleAuraColor)
             pe.Rate = 20
@@ -1961,25 +1778,21 @@ local function ParticleAura_RefreshAll()
                 NumberSequenceKeypoint.new(1, 0),
             })
             pe.Parent = att
-
             table.insert(activeParticleAuras, att)
         end
     end
 end
+
 local function Skybox_Apply(name)
     local data = SkyboxAssets[name]
-
     if not data then
         return
     end
-
     local sky = Lighting:FindFirstChildOfClass('Sky')
-
     if not sky then
         sky = Instance.new('Sky')
         sky.Parent = Lighting
     end
-
     sky.SkyboxBk = data.Bk
     sky.SkyboxDn = data.Dn
     sky.SkyboxFt = data.Ft
@@ -1987,9 +1800,9 @@ local function Skybox_Apply(name)
     sky.SkyboxRt = data.Rt
     sky.SkyboxUp = data.Up
 end
+
 local function Skybox_RestoreDefault()
     local sky = Lighting:FindFirstChildOfClass('Sky')
-
     if sky and DefaultSkySettings.SkyboxBk then
         sky.SkyboxBk = DefaultSkySettings.SkyboxBk
         sky.SkyboxDn = DefaultSkySettings.SkyboxDn
@@ -1999,23 +1812,19 @@ local function Skybox_RestoreDefault()
         sky.SkyboxUp = DefaultSkySettings.SkyboxUp
     end
 end
+
 local function Nebula_Enable()
     local bloom = Instance.new('BloomEffect')
-
     bloom.Name = 'NebulaBloom'
     bloom.Intensity = 1.2
     bloom.Size = 24
     bloom.Threshold = 0.8
     bloom.Parent = Lighting
-
     local cc = Instance.new('ColorCorrectionEffect')
-
     cc.Name = 'NebulaColorCorrection'
     cc.TintColor = NebulaVariables.themeColor
     cc.Parent = Lighting
-
     local a = Instance.new('Atmosphere')
-
     a.Name = 'NebulaAtmosphere'
     a.Color = NebulaVariables.themeColor
     a.Decay = Color3.fromRGB(173, 216, 230)
@@ -2026,47 +1835,43 @@ local function Nebula_Enable()
     Lighting.FogEnd = 500
     Lighting.FogColor = NebulaVariables.themeColor
 end
+
 local function Nebula_Disable()
     for _, name in pairs({
         'NebulaBloom',
         'NebulaColorCorrection',
         'NebulaAtmosphere',
-    })do
+    }) do
         local obj = Lighting:FindFirstChild(name)
-
         if obj then
             obj:Destroy()
         end
     end
-
     Lighting.Ambient = defaultLighting.Ambient
     Lighting.OutdoorAmbient = defaultLighting.OutdoorAmbient
     Lighting.FogStart = defaultLighting.FogStart
     Lighting.FogEnd = defaultLighting.FogEnd
     Lighting.FogColor = defaultLighting.FogColor
 end
+
 local function Nebula_UpdateColor()
     if NebulaVariables.enabled then
         local nc = Lighting:FindFirstChild('NebulaColorCorrection')
-
         if nc then
             nc.TintColor = NebulaVariables.themeColor
         end
-
         local na = Lighting:FindFirstChild('NebulaAtmosphere')
-
         if na then
             na.Color = NebulaVariables.themeColor
         end
-
         Lighting.Ambient = NebulaVariables.themeColor
         Lighting.OutdoorAmbient = NebulaVariables.themeColor
         Lighting.FogColor = NebulaVariables.themeColor
     end
 end
+
 local function Screen_Toggle(value)
     WorldVariables.screenEnabled = value
-
     if value then
         WorldVariables.screenConnection = RunService.RenderStepped:Connect(function()
             camera.CFrame = camera.CFrame * CFrame.new(0, 0, 0, 1, 0, 0, 0, (0.65 + WorldVariables.screenIntensity), 0, 0, 0, 1)
@@ -2074,36 +1879,35 @@ local function Screen_Toggle(value)
     else
         if WorldVariables.screenConnection then
             WorldVariables.screenConnection:Disconnect()
-
             WorldVariables.screenConnection = nil
         end
     end
 end
+
 local function applyAtmosphere()
     if LarpticAtmosphere then
         LarpticAtmosphere:Destroy()
     end
-
     LarpticAtmosphere = Instance.new('Atmosphere')
     LarpticAtmosphere.Parent = Lighting
 end
+
 local function applyTexturePack()
     TexturePackEnabled = true
 end
+
 local function clearTexturePack()
     TexturePackEnabled = false
 end
+
 local function Anime_Toggle(value)
     AnimeVariables.enabled = value
-
     if value then
         AnimeVariables.gui = Instance.new('ScreenGui')
         AnimeVariables.gui.Name = 'AnimeImageGui'
         AnimeVariables.gui.ResetOnSpawn = false
         AnimeVariables.gui.Parent = LocalPlayer:WaitForChild('PlayerGui')
-
         local imageLabel = Instance.new('ImageLabel')
-
         imageLabel.Name = 'AnimeImage'
         imageLabel.Image = 'http://www.roblox.com/asset/?id=117783035423570'
         imageLabel.Size = UDim2.new(0, 350, 0, 400)
@@ -2114,7 +1918,6 @@ local function Anime_Toggle(value)
     else
         if AnimeVariables.gui then
             AnimeVariables.gui:Destroy()
-
             AnimeVariables.gui = nil
         end
     end
@@ -2122,7 +1925,6 @@ end
 
 LocalPlayer.CharacterAdded:Connect(function(char)
     task.wait(1)
-
     if HatVariables.enabled and HatVariables.style == 'Classic' then
         Hat_AddClassic(char)
     end
@@ -2138,10 +1940,10 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     if AnimeVariables.enabled then
         Anime_Toggle(true)
     end
-
     ClassicAura_RefreshAll()
     ParticleAura_RefreshAll()
 end)
+
 RunService.Heartbeat:Connect(function()
     if WorldVariables.timeEnabled then
         Lighting.ClockTime = WorldVariables.timeValue
@@ -2153,6 +1955,7 @@ RunService.Heartbeat:Connect(function()
         Lighting.ExposureCompensation = 0.3
     end
 end)
+
 print('\u{26a1} [CANDY ZONE] All features loaded')
 
 local GUI = {
@@ -2175,59 +1978,45 @@ function GUI:Initialize()
     self.ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     self.ScreenGui.IgnoreGuiInset = true
     self.ScreenGui.DisplayOrder = 999999999
-
     if gethui then
         self.ScreenGui.Parent = gethui()
     elseif syn and syn.protect_gui then
         syn.protect_gui(self.ScreenGui)
-
         self.ScreenGui.Parent = CoreGui
     else
         self.ScreenGui.Parent = CoreGui
     end
-
     self:CreateTopBar()
     self:CreateMainWindow()
 end
+
 function GUI:CreateTopBar()
     local container = Instance.new('Frame')
-
     container.Name = 'TopBar'
     container.Size = UDim2.new(0, 410, 0, Config.Size.TopBar.Height)
     container.Position = UDim2.new(0, 15, 0, 15)
     container.BackgroundTransparency = 1
     container.ZIndex = 100
     container.Parent = self.ScreenGui
-
     local candyBtn = self:CreateTopBarBlock('Candy Zone', 110, 0, true)
-
     candyBtn.MouseButton1Click:Connect(function()
         self:ToggleMain()
     end)
-
     candyBtn.Parent = container
     self.TopBar.CandyBtn = candyBtn
-
     local fpsBlock = self:CreateTopBarBlock('FPS: 60', 70, 118, false)
-
     fpsBlock.Parent = container
     self.TopBar.FPS = fpsBlock
-
     local gameBlock = self:CreateTopBarBlock(Util:GetGameName(), 110, 196, false)
-
     gameBlock.Parent = container
     self.TopBar.Game = gameBlock
-
     local playerBlock = self:CreateTopBarBlock(Util:GetPlayerName(), 120, 314, false)
-
     playerBlock.Parent = container
     self.TopBar.Player = playerBlock
-
     task.spawn(function()
         while task.wait(0.5) do
             if self.TopBar.FPS and self.TopBar.FPS.Parent then
                 self.TopBar.FPS.Text = 'FPS: ' .. FPS.current
-
                 Util:Tween(self.TopBar.FPS, {
                     TextColor3 = FPS:GetColor(),
                 }, 0.3)
@@ -2237,9 +2026,9 @@ function GUI:CreateTopBar()
         end
     end)
 end
+
 function GUI:CreateTopBarBlock(text, width, xPos, isButton)
     local block = Instance.new(isButton and 'TextButton' or 'TextLabel')
-
     block.Size = UDim2.new(0, width, 0, Config.Size.TopBar.Height)
     block.Position = UDim2.new(0, xPos, 0, 0)
     block.BackgroundColor3 = Config.Color.Background.Primary
@@ -2250,16 +2039,12 @@ function GUI:CreateTopBarBlock(text, width, xPos, isButton)
     block.TextColor3 = Config.Color.Text.Primary
     block.TextSize = 12
     block.ZIndex = 101
-
     if isButton then
         block.AutoButtonColor = false
     end
-
     Util:Corner(block, Config.Size.TopBar.Radius)
     Util:Stroke(block, 1, Config.Color.Accent.White, 0.8)
-
     local glow = Instance.new('TextLabel')
-
     glow.Size = UDim2.new(1, 0, 1, 2)
     glow.Position = UDim2.new(0, 0, 0, 1)
     glow.BackgroundTransparency = 1
@@ -2270,25 +2055,24 @@ function GUI:CreateTopBarBlock(text, width, xPos, isButton)
     glow.TextTransparency = 0.85
     glow.ZIndex = 100
     glow.Parent = block
-
     if isButton then
         block.MouseEnter:Connect(function()
             Util:Tween(block, {
                 BackgroundColor3 = Config.Color.Background.Hover,
             }, Config.Anim.Fast)
-            Util:Tween(glow, {TextTransparency = 0.65}, Config.Anim.Fast)
+            Util:Tween(glow, { TextTransparency = 0.65 }, Config.Anim.Fast)
         end)
         block.MouseLeave:Connect(function()
             Util:Tween(block, {
                 BackgroundColor3 = Config.Color.Background.Primary,
             }, Config.Anim.Fast)
-            Util:Tween(glow, {TextTransparency = 0.85}, Config.Anim.Fast)
+            Util:Tween(glow, { TextTransparency = 0.85 }, Config.Anim.Fast)
         end)
         Util:Ripple(block)
     end
-
     return block
 end
+
 function GUI:CreateMainWindow()
     self.Main.Blur = Instance.new('Frame')
     self.Main.Blur.Size = UDim2.new(1, 0, 1, 0)
@@ -2306,7 +2090,6 @@ function GUI:CreateMainWindow()
     self.Main.Window.Visible = false
     self.Main.Window.ZIndex = 51
     self.Main.Window.Parent = self.ScreenGui
-
     Util:Corner(self.Main.Window, Config.Size.Window.Radius)
     Util:Stroke(self.Main.Window, 1.5, Config.Color.Accent.White, 0.85)
     self:CreateAccentBar()
@@ -2316,30 +2099,25 @@ function GUI:CreateMainWindow()
     self:CreateContentArea()
     self:LoadTab('Visuals')
 end
+
 function GUI:CreateAccentBar()
     local bar = Instance.new('Frame')
-
     bar.Name = 'AccentBar'
     bar.Size = UDim2.new(0, 4, 1, 0)
     bar.BackgroundColor3 = Config.Color.Accent.White
     bar.BorderSizePixel = 0
     bar.ZIndex = 60
     bar.Parent = self.Main.Window
-
     local grad = Util:Gradient(bar, ColorSequence.new{
         ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
         ColorSequenceKeypoint.new(0.5, Color3.fromRGB(200, 200, 200)),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255)),
     }, 90)
-
     task.spawn(function()
         local offset = 0
-
         while self.Main.Window and self.Main.Window.Parent do
             task.wait(0.03)
-
             offset = offset + 0.015
-
             if grad and grad.Parent then
                 grad.Offset = Vector2.new(0, math.sin(offset * 2) * 0.3)
             else
@@ -2348,16 +2126,14 @@ function GUI:CreateAccentBar()
         end
     end)
 end
+
 function GUI:CreateTitleBar()
     local bar = Instance.new('Frame')
-
     bar.Size = UDim2.new(1, 0, 0, 45)
     bar.BackgroundTransparency = 1
     bar.ZIndex = 52
     bar.Parent = self.Main.Window
-
     local title = Instance.new('TextLabel')
-
     title.Size = UDim2.new(0, 200, 1, 0)
     title.Position = UDim2.new(0, 20, 0, 0)
     title.BackgroundTransparency = 1
@@ -2368,9 +2144,7 @@ function GUI:CreateTitleBar()
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.ZIndex = 53
     title.Parent = bar
-
     local version = Instance.new('TextLabel')
-
     version.Size = UDim2.new(0, 120, 1, 0)
     version.Position = UDim2.new(0, 160, 0, 0)
     version.BackgroundTransparency = 1
@@ -2382,9 +2156,7 @@ function GUI:CreateTitleBar()
     version.TextTransparency = 0.4
     version.ZIndex = 53
     version.Parent = bar
-
     local close = Instance.new('TextButton')
-
     close.Size = UDim2.new(0, 30, 0, 30)
     close.Position = UDim2.new(1, -40, 0, 7)
     close.BackgroundColor3 = Config.Color.Background.Secondary
@@ -2397,7 +2169,6 @@ function GUI:CreateTitleBar()
     close.AutoButtonColor = false
     close.ZIndex = 54
     close.Parent = bar
-
     Util:Corner(close, 6)
     Util:Stroke(close, 1, Config.Color.Accent.White, 0.8)
     close.MouseEnter:Connect(function()
@@ -2414,9 +2185,7 @@ function GUI:CreateTitleBar()
         self:ToggleMain()
     end)
     Util:Ripple(close)
-
     local div = Instance.new('Frame')
-
     div.Size = UDim2.new(1, -20, 0, 1)
     div.Position = UDim2.new(0, 10, 1, -1)
     div.BackgroundColor3 = Config.Color.Accent.White
@@ -2425,54 +2194,33 @@ function GUI:CreateTitleBar()
     div.ZIndex = 52
     div.Parent = bar
 end
+
 function GUI:CreateNavigation()
     local nav = Instance.new('Frame')
-
     nav.Size = UDim2.new(0, Config.Size.Nav.Width, 1, -65)
     nav.Position = UDim2.new(0, 15, 0, 55)
     nav.BackgroundTransparency = 1
     nav.ZIndex = 52
     nav.Parent = self.Main.Window
-
     local tabs = {
-        {
-            name = 'Visuals',
-            icon = 'V',
-        },
-        {
-            name = 'Combat',
-            icon = 'C',
-        },
-        {
-            name = 'Rage',
-            icon = 'R',
-        },
-        {
-            name = 'Fun',
-            icon = 'F',
-        },
-        {
-            name = 'Settings',
-            icon = 'S',
-        },
-        {
-            name = 'Misc',
-            icon = 'M',
-        },
+        { name = 'Visuals', icon = 'V' },
+        { name = 'Combat', icon = 'C' },
+        { name = 'Rage', icon = 'R' },
+        { name = 'Fun', icon = 'F' },
+        { name = 'Settings', icon = 'S' },
+        { name = 'Misc', icon = 'M' },
     }
     local yPos = 0
-
-    for i, tab in ipairs(tabs)do
+    for i, tab in ipairs(tabs) do
         local btn = self:CreateNavButton(tab.name, tab.icon, yPos, i == 1)
-
         btn.Parent = nav
         self.Main.Nav[tab.name] = btn
         yPos = yPos + Config.Size.Nav.ButtonHeight + Config.Size.Nav.Spacing
     end
 end
+
 function GUI:CreateNavButton(name, icon, yPos, isActive)
     local btn = Instance.new('TextButton')
-
     btn.Name = name
     btn.Size = UDim2.new(1, 0, 0, Config.Size.Nav.ButtonHeight)
     btn.Position = UDim2.new(0, 0, 0, yPos)
@@ -2482,12 +2230,9 @@ function GUI:CreateNavButton(name, icon, yPos, isActive)
     btn.AutoButtonColor = false
     btn.Text = ''
     btn.ZIndex = 53
-
     Util:Corner(btn, Config.Size.Nav.Radius)
     Util:Stroke(btn, 0.5, Config.Color.Accent.White, 0.92)
-
     local indicator = Instance.new('Frame')
-
     indicator.Name = 'Indicator'
     indicator.Size = UDim2.new(0, 3, 1, -10)
     indicator.Position = UDim2.new(0, 2, 0, 5)
@@ -2495,13 +2240,9 @@ function GUI:CreateNavButton(name, icon, yPos, isActive)
     indicator.BorderSizePixel = 0
     indicator.Visible = isActive
     indicator.ZIndex = 54
-
     Util:Corner(indicator, 999)
-
     indicator.Parent = btn
-
     local iconLbl = Instance.new('TextLabel')
-
     iconLbl.Size = UDim2.new(0, 25, 1, 0)
     iconLbl.Position = UDim2.new(0, 12, 0, 0)
     iconLbl.BackgroundTransparency = 1
@@ -2511,9 +2252,7 @@ function GUI:CreateNavButton(name, icon, yPos, isActive)
     iconLbl.TextSize = 14
     iconLbl.ZIndex = 54
     iconLbl.Parent = btn
-
     local textLbl = Instance.new('TextLabel')
-
     textLbl.Size = UDim2.new(1, -45, 1, 0)
     textLbl.Position = UDim2.new(0, 40, 0, 0)
     textLbl.BackgroundTransparency = 1
@@ -2524,9 +2263,7 @@ function GUI:CreateNavButton(name, icon, yPos, isActive)
     textLbl.TextXAlignment = Enum.TextXAlignment.Left
     textLbl.ZIndex = 54
     textLbl.Parent = btn
-
     local glow = Instance.new('TextLabel')
-
     glow.Size = textLbl.Size
     glow.Position = UDim2.new(0, 40, 0, 1)
     glow.BackgroundTransparency = 1
@@ -2538,13 +2275,12 @@ function GUI:CreateNavButton(name, icon, yPos, isActive)
     glow.TextTransparency = 0.92
     glow.ZIndex = 53
     glow.Parent = btn
-
     btn.MouseEnter:Connect(function()
         if self.Main.CurrentTab ~= name then
             Util:Tween(btn, {
                 BackgroundColor3 = Config.Color.Background.Hover,
             }, Config.Anim.Fast)
-            Util:Tween(glow, {TextTransparency = 0.75}, Config.Anim.Fast)
+            Util:Tween(glow, { TextTransparency = 0.75 }, Config.Anim.Fast)
         end
     end)
     btn.MouseLeave:Connect(function()
@@ -2552,16 +2288,16 @@ function GUI:CreateNavButton(name, icon, yPos, isActive)
             Util:Tween(btn, {
                 BackgroundColor3 = Config.Color.Background.Secondary,
             }, Config.Anim.Fast)
-            Util:Tween(glow, {TextTransparency = 0.92}, Config.Anim.Fast)
+            Util:Tween(glow, { TextTransparency = 0.92 }, Config.Anim.Fast)
         end
     end)
     btn.MouseButton1Click:Connect(function()
         self:SwitchTab(name)
     end)
     Util:Ripple(btn)
-
     return btn
 end
+
 function GUI:CreateContentArea()
     self.Main.Content = Instance.new('ScrollingFrame')
     self.Main.Content.Size = UDim2.new(1, -(Config.Size.Nav.Width + 40), 1, -75)
@@ -2577,25 +2313,19 @@ function GUI:CreateContentArea()
     self.Main.Content.ElasticBehavior = Enum.ElasticBehavior.Never
     self.Main.Content.ZIndex = 52
     self.Main.Content.Parent = self.Main.Window
-
     local list = Instance.new('UIListLayout')
-
     list.Padding = UDim.new(0, 8)
     list.SortOrder = Enum.SortOrder.LayoutOrder
     list.Parent = self.Main.Content
-
     local pad = Instance.new('UIPadding')
-
     pad.PaddingLeft = UDim.new(0, 5)
     pad.PaddingRight = UDim.new(0, 10)
     pad.PaddingTop = UDim.new(0, 5)
     pad.PaddingBottom = UDim.new(0, 5)
     pad.Parent = self.Main.Content
-
     list:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
         local contentHeight = list.AbsoluteContentSize.Y + 10
         local viewHeight = self.Main.Content.AbsoluteSize.Y
-
         if contentHeight <= viewHeight then
             self.Main.Content.CanvasSize = UDim2.new(0, 0, 0, 0)
             self.Main.Content.CanvasPosition = Vector2.new(0, 0)
@@ -2604,53 +2334,47 @@ function GUI:CreateContentArea()
         end
     end)
 end
+
 function GUI:SwitchTab(tabName)
     if self.Main.CurrentTab == tabName then
         return
     end
-
-    for name, btn in pairs(self.Main.Nav)do
+    for name, btn in pairs(self.Main.Nav) do
         local indicator = btn:FindFirstChild('Indicator')
         local glow = btn:FindFirstChild('TextLabel')
-
         if name == tabName then
             Util:Tween(btn, {
                 BackgroundColor3 = Config.Color.Background.Active,
             }, Config.Anim.Normal)
-
             if indicator then
                 indicator.Visible = true
             end
             if glow then
-                Util:Tween(glow, {TextTransparency = 0.65}, Config.Anim.Fast)
+                Util:Tween(glow, { TextTransparency = 0.65 }, Config.Anim.Fast)
             end
         else
             Util:Tween(btn, {
                 BackgroundColor3 = Config.Color.Background.Secondary,
             }, Config.Anim.Normal)
-
             if indicator then
                 indicator.Visible = false
             end
             if glow then
-                Util:Tween(glow, {TextTransparency = 0.92}, Config.Anim.Fast)
+                Util:Tween(glow, { TextTransparency = 0.92 }, Config.Anim.Fast)
             end
         end
     end
-
     self.Main.CurrentTab = tabName
-
     self:LoadTab(tabName)
 end
+
 function GUI:LoadTab(tabName)
-    for _, child in ipairs(self.Main.Content:GetChildren())do
+    for _, child in ipairs(self.Main.Content:GetChildren()) do
         if not child:IsA('UIListLayout') and not child:IsA('UIPadding') then
             child:Destroy()
         end
     end
-
     self.Main.Content.CanvasPosition = Vector2.new(0, 0)
-
     if tabName == 'Visuals' then
         self:CreateVisualsTab()
     elseif tabName == 'Combat' then
@@ -2665,9 +2389,9 @@ function GUI:LoadTab(tabName)
         self:CreateMiscTab()
     end
 end
+
 function GUI:CreateSection(title)
     local section = Instance.new('Frame')
-
     section.Size = UDim2.new(1, 0, 0, 40)
     section.BackgroundColor3 = Config.Color.Background.Secondary
     section.BackgroundTransparency = 0.4
@@ -2675,12 +2399,9 @@ function GUI:CreateSection(title)
     section.AutomaticSize = Enum.AutomaticSize.Y
     section.ZIndex = 53
     section.Parent = self.Main.Content
-
     Util:Corner(section, 8)
     Util:Stroke(section, 1, Config.Color.Accent.White, 0.88)
-
     local titleLbl = Instance.new('TextLabel')
-
     titleLbl.Size = UDim2.new(1, -20, 0, 25)
     titleLbl.Position = UDim2.new(0, 10, 0, 6)
     titleLbl.BackgroundTransparency = 1
@@ -2691,9 +2412,7 @@ function GUI:CreateSection(title)
     titleLbl.TextXAlignment = Enum.TextXAlignment.Left
     titleLbl.ZIndex = 54
     titleLbl.Parent = section
-
     local container = Instance.new('Frame')
-
     container.Name = 'Container'
     container.Size = UDim2.new(1, -20, 0, 0)
     container.Position = UDim2.new(0, 10, 0, 32)
@@ -2701,34 +2420,26 @@ function GUI:CreateSection(title)
     container.AutomaticSize = Enum.AutomaticSize.Y
     container.ZIndex = 53
     container.Parent = section
-
     local list = Instance.new('UIListLayout')
-
     list.Padding = UDim.new(0, 6)
     list.Parent = container
-
     local pad = Instance.new('UIPadding')
-
     pad.PaddingBottom = UDim.new(0, 8)
     pad.Parent = section
-
     return container
 end
+
 function GUI:CreateToggle(parent, text, default, callback)
     local toggle = Instance.new('Frame')
-
     toggle.Size = UDim2.new(1, 0, 0, Config.Size.Element.Height)
     toggle.BackgroundColor3 = Config.Color.Background.Input
     toggle.BackgroundTransparency = 0.5
     toggle.BorderSizePixel = 0
     toggle.ZIndex = 54
     toggle.Parent = parent
-
     Util:Corner(toggle, 6)
     Util:Stroke(toggle, 0.5, Config.Color.Accent.White, 0.9)
-
     local label = Instance.new('TextLabel')
-
     label.Size = UDim2.new(1, -50, 1, 0)
     label.Position = UDim2.new(0, 10, 0, 0)
     label.BackgroundTransparency = 1
@@ -2739,9 +2450,7 @@ function GUI:CreateToggle(parent, text, default, callback)
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 55
     label.Parent = toggle
-
     local btn = Instance.new('TextButton')
-
     btn.Size = UDim2.new(0, Config.Size.Toggle.Width, 0, Config.Size.Toggle.Height)
     btn.Position = UDim2.new(1, -45, 0.5, -10)
     btn.BackgroundColor3 = default and Config.Color.State.Success or Config.Color.Background.Primary
@@ -2750,55 +2459,42 @@ function GUI:CreateToggle(parent, text, default, callback)
     btn.AutoButtonColor = false
     btn.ZIndex = 55
     btn.Parent = toggle
-
     Util:Corner(btn, 999)
-
     local dot = Instance.new('Frame')
-
     dot.Size = UDim2.new(0, Config.Size.Toggle.DotSize, 0, Config.Size.Toggle.DotSize)
     dot.Position = default and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
     dot.BackgroundColor3 = Config.Color.Accent.White
     dot.BorderSizePixel = 0
     dot.ZIndex = 56
-
     Util:Corner(dot, 999)
-
     dot.Parent = btn
-
     local state = default
-
     btn.MouseButton1Click:Connect(function()
         state = not state
-
         Util:Tween(btn, {
             BackgroundColor3 = state and Config.Color.State.Success or Config.Color.Background.Primary,
         }, Config.Anim.Fast)
         Util:Tween(dot, {
             Position = state and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8),
         }, Config.Anim.Normal)
-
         if callback then
             pcall(callback, state)
         end
     end)
-
     return toggle
 end
+
 function GUI:CreateSlider(parent, text, min, max, default, callback)
     local slider = Instance.new('Frame')
-
     slider.Size = UDim2.new(1, 0, 0, 44)
     slider.BackgroundColor3 = Config.Color.Background.Input
     slider.BackgroundTransparency = 0.5
     slider.BorderSizePixel = 0
     slider.ZIndex = 54
     slider.Parent = parent
-
     Util:Corner(slider, 6)
     Util:Stroke(slider, 0.5, Config.Color.Accent.White, 0.9)
-
     local label = Instance.new('TextLabel')
-
     label.Size = UDim2.new(1, -70, 0, 18)
     label.Position = UDim2.new(0, 10, 0, 4)
     label.BackgroundTransparency = 1
@@ -2809,9 +2505,7 @@ function GUI:CreateSlider(parent, text, min, max, default, callback)
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 55
     label.Parent = slider
-
     local value = Instance.new('TextLabel')
-
     value.Size = UDim2.new(0, 60, 0, 18)
     value.Position = UDim2.new(1, -68, 0, 4)
     value.BackgroundTransparency = 1
@@ -2822,55 +2516,39 @@ function GUI:CreateSlider(parent, text, min, max, default, callback)
     value.TextXAlignment = Enum.TextXAlignment.Right
     value.ZIndex = 55
     value.Parent = slider
-
     local bg = Instance.new('Frame')
-
     bg.Size = UDim2.new(1, -20, 0, Config.Size.Slider.Height)
     bg.Position = UDim2.new(0, 10, 1, -14)
     bg.BackgroundColor3 = Config.Color.Background.Primary
     bg.BorderSizePixel = 0
     bg.ZIndex = 55
-
     Util:Corner(bg, 999)
-
     bg.Parent = slider
-
     local fill = Instance.new('Frame')
-
     fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
     fill.BackgroundColor3 = Config.Color.Accent.White
     fill.BorderSizePixel = 0
     fill.ZIndex = 56
-
     Util:Corner(fill, 999)
-
     fill.Parent = bg
-
     local handle = Instance.new('Frame')
-
     handle.Size = UDim2.new(0, Config.Size.Slider.HandleSize, 0, Config.Size.Slider.HandleSize)
     handle.Position = UDim2.new(1, -7, 0.5, -7)
     handle.BackgroundColor3 = Config.Color.Accent.White
     handle.BorderSizePixel = 0
     handle.ZIndex = 57
-
     Util:Corner(handle, 999)
-
     handle.Parent = fill
-
     local dragging = false
     local currentValue = default
-
     local function update(input)
         local absPos = bg.AbsolutePosition
         local absSize = bg.AbsoluteSize
         local x = Util:Clamp(input.Position.X - absPos.X, 0, absSize.X)
         local percent = absSize.X > 0 and (x / absSize.X) or 0
-
         currentValue = Util:Round(min + (max - min) * percent, 0)
         value.Text = tostring(currentValue)
         fill.Size = UDim2.new(percent, 0, 1, 0)
-
         if callback then
             pcall(callback, currentValue)
         end
@@ -2878,11 +2556,9 @@ function GUI:CreateSlider(parent, text, min, max, default, callback)
     local function beginDrag(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
-
             update(input)
         end
     end
-
     bg.InputBegan:Connect(beginDrag)
     fill.InputBegan:Connect(beginDrag)
     handle.InputBegan:Connect(beginDrag)
@@ -2896,12 +2572,11 @@ function GUI:CreateSlider(parent, text, min, max, default, callback)
             dragging = false
         end
     end)
-
     return slider
 end
+
 function GUI:CreateButton(parent, text, callback)
     local btn = Instance.new('TextButton')
-
     btn.Size = UDim2.new(1, 0, 0, 30)
     btn.BackgroundColor3 = Config.Color.Background.Secondary
     btn.BackgroundTransparency = 0.3
@@ -2913,22 +2588,19 @@ function GUI:CreateButton(parent, text, callback)
     btn.AutoButtonColor = false
     btn.ZIndex = 54
     btn.Parent = parent
-
     Util:Corner(btn, 6)
-
     local stroke = Util:Stroke(btn, 1, Config.Color.Accent.White, 0.85)
-
     btn.MouseEnter:Connect(function()
         Util:Tween(btn, {
             BackgroundColor3 = Config.Color.Background.Hover,
         }, Config.Anim.Fast)
-        Util:Tween(stroke, {Transparency = 0.6}, Config.Anim.Fast)
+        Util:Tween(stroke, { Transparency = 0.6 }, Config.Anim.Fast)
     end)
     btn.MouseLeave:Connect(function()
         Util:Tween(btn, {
             BackgroundColor3 = Config.Color.Background.Secondary,
         }, Config.Anim.Fast)
-        Util:Tween(stroke, {Transparency = 0.85}, Config.Anim.Fast)
+        Util:Tween(stroke, { Transparency = 0.85 }, Config.Anim.Fast)
     end)
     btn.MouseButton1Click:Connect(function()
         if callback then
@@ -2936,24 +2608,20 @@ function GUI:CreateButton(parent, text, callback)
         end
     end)
     Util:Ripple(btn)
-
     return btn
 end
+
 function GUI:CreateColorPicker(parent, text, defaultColor, callback)
     local picker = Instance.new('Frame')
-
     picker.Size = UDim2.new(1, 0, 0, Config.Size.Element.Height)
     picker.BackgroundColor3 = Config.Color.Background.Input
     picker.BackgroundTransparency = 0.5
     picker.BorderSizePixel = 0
     picker.ZIndex = 54
     picker.Parent = parent
-
     Util:Corner(picker, 6)
     Util:Stroke(picker, 0.5, Config.Color.Accent.White, 0.9)
-
     local label = Instance.new('TextLabel')
-
     label.Size = UDim2.new(1, -50, 1, 0)
     label.Position = UDim2.new(0, 10, 0, 0)
     label.BackgroundTransparency = 1
@@ -2964,9 +2632,7 @@ function GUI:CreateColorPicker(parent, text, defaultColor, callback)
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 55
     label.Parent = picker
-
     local colorBox = Instance.new('TextButton')
-
     colorBox.Size = UDim2.new(0, 35, 0, 20)
     colorBox.Position = UDim2.new(1, -45, 0.5, -10)
     colorBox.BackgroundColor3 = defaultColor
@@ -2974,25 +2640,18 @@ function GUI:CreateColorPicker(parent, text, defaultColor, callback)
     colorBox.Text = ''
     colorBox.AutoButtonColor = false
     colorBox.ZIndex = 55
-
     Util:Corner(colorBox, 4)
-
     colorBox.Parent = picker
-
     local currentColor = defaultColor
     local expanded = false
     local presetFrame = nil
-
     colorBox.MouseButton1Click:Connect(function()
         if expanded and presetFrame then
             presetFrame:Destroy()
-
             presetFrame = nil
             expanded = false
-
             return
         end
-
         expanded = true
         presetFrame = Instance.new('Frame')
         presetFrame.Size = UDim2.new(1, 0, 0, 70)
@@ -3001,74 +2660,58 @@ function GUI:CreateColorPicker(parent, text, defaultColor, callback)
         presetFrame.BorderSizePixel = 0
         presetFrame.ZIndex = 60
         presetFrame.Parent = parent
-
         Util:Corner(presetFrame, 6)
         Util:Stroke(presetFrame, 1, Config.Color.Accent.White, 0.7)
-
         local grid = Instance.new('UIGridLayout')
-
         grid.CellSize = UDim2.new(0, 28, 0, 28)
         grid.CellPadding = UDim2.new(0, 4, 0, 4)
         grid.FillDirectionMaxCells = 9
         grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
         grid.VerticalAlignment = Enum.VerticalAlignment.Center
         grid.Parent = presetFrame
-
         local pad = Instance.new('UIPadding')
-
         pad.PaddingTop = UDim.new(0, 6)
         pad.PaddingBottom = UDim.new(0, 6)
         pad.PaddingLeft = UDim.new(0, 6)
         pad.PaddingRight = UDim.new(0, 6)
         pad.Parent = presetFrame
-
-        for _, preset in ipairs(ColorPresets)do
+        for _, preset in ipairs(ColorPresets) do
             local pBtn = Instance.new('TextButton')
-
             pBtn.Size = UDim2.new(0, 28, 0, 28)
             pBtn.BackgroundColor3 = preset.Color
             pBtn.BorderSizePixel = 0
             pBtn.Text = ''
             pBtn.AutoButtonColor = false
             pBtn.ZIndex = 61
-
             Util:Corner(pBtn, 4)
-
             pBtn.Parent = presetFrame
-
             pBtn.MouseButton1Click:Connect(function()
                 currentColor = preset.Color
                 colorBox.BackgroundColor3 = currentColor
-
                 if callback then
                     pcall(callback, currentColor)
                 end
                 if presetFrame then
                     presetFrame:Destroy()
                 end
-
                 expanded = false
                 presetFrame = nil
             end)
         end
     end)
-
     return picker
 end
+
 function GUI:CreateLabel(parent, labelText, valueText)
     local frame = Instance.new('Frame')
-
     frame.Size = UDim2.new(1, 0, 0, 26)
     frame.BackgroundColor3 = Config.Color.Background.Input
     frame.BackgroundTransparency = 0.6
     frame.BorderSizePixel = 0
     frame.ZIndex = 54
     frame.Parent = parent
-
     Util:Corner(frame, 6)
-
     local label = Instance.new('TextLabel')
-
     label.Size = UDim2.new(0.5, -10, 1, 0)
     label.Position = UDim2.new(0, 10, 0, 0)
     label.BackgroundTransparency = 1
@@ -3079,9 +2722,7 @@ function GUI:CreateLabel(parent, labelText, valueText)
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 55
     label.Parent = frame
-
     local value = Instance.new('TextLabel')
-
     value.Size = UDim2.new(0.5, -10, 1, 0)
     value.Position = UDim2.new(0.5, 0, 0, 0)
     value.BackgroundTransparency = 1
@@ -3092,24 +2733,20 @@ function GUI:CreateLabel(parent, labelText, valueText)
     value.TextXAlignment = Enum.TextXAlignment.Right
     value.ZIndex = 55
     value.Parent = frame
-
     return frame
 end
+
 function GUI:CreateKeybindButton(parent, text, defaultKey, callback)
     local keybind = Instance.new('Frame')
-
     keybind.Size = UDim2.new(1, 0, 0, Config.Size.Element.Height)
     keybind.BackgroundColor3 = Config.Color.Background.Input
     keybind.BackgroundTransparency = 0.5
     keybind.BorderSizePixel = 0
     keybind.ZIndex = 54
     keybind.Parent = parent
-
     Util:Corner(keybind, 6)
     Util:Stroke(keybind, 0.5, Config.Color.Accent.White, 0.9)
-
     local label = Instance.new('TextLabel')
-
     label.Size = UDim2.new(1, -90, 1, 0)
     label.Position = UDim2.new(0, 10, 0, 0)
     label.BackgroundTransparency = 1
@@ -3120,9 +2757,7 @@ function GUI:CreateKeybindButton(parent, text, defaultKey, callback)
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 55
     label.Parent = keybind
-
     local btn = Instance.new('TextButton')
-
     btn.Size = UDim2.new(0, 80, 0, 24)
     btn.Position = UDim2.new(1, -85, 0.5, -12)
     btn.BackgroundColor3 = Config.Color.Background.Secondary
@@ -3134,58 +2769,44 @@ function GUI:CreateKeybindButton(parent, text, defaultKey, callback)
     btn.TextSize = 10
     btn.AutoButtonColor = false
     btn.ZIndex = 55
-
     Util:Corner(btn, 4)
-
     btn.Parent = keybind
-
     local listening = false
-
     btn.MouseButton1Click:Connect(function()
         if listening then
             return
         end
-
         listening = true
         btn.Text = '...'
-
         local connection
-
         connection = UserInputService.InputBegan:Connect(function(input, gp)
             if gp then
                 return
             end
             if input.UserInputType == Enum.UserInputType.Keyboard then
                 btn.Text = input.KeyCode.Name
-
                 if callback then
                     pcall(callback, input.KeyCode)
                 end
-
                 listening = false
-
                 connection:Disconnect()
             end
         end)
     end)
-
     return keybind
 end
+
 function GUI:CreateDropdown(parent, text, options, defaultOption, callback)
     local dropdown = Instance.new('Frame')
-
     dropdown.Size = UDim2.new(1, 0, 0, Config.Size.Element.Height)
     dropdown.BackgroundColor3 = Config.Color.Background.Input
     dropdown.BackgroundTransparency = 0.5
     dropdown.BorderSizePixel = 0
     dropdown.ZIndex = 54
     dropdown.Parent = parent
-
     Util:Corner(dropdown, 6)
     Util:Stroke(dropdown, 0.5, Config.Color.Accent.White, 0.9)
-
     local label = Instance.new('TextLabel')
-
     label.Size = UDim2.new(1, -100, 1, 0)
     label.Position = UDim2.new(0, 10, 0, 0)
     label.BackgroundTransparency = 1
@@ -3196,9 +2817,7 @@ function GUI:CreateDropdown(parent, text, options, defaultOption, callback)
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 55
     label.Parent = dropdown
-
     local btn = Instance.new('TextButton')
-
     btn.Size = UDim2.new(0, 90, 0, 24)
     btn.Position = UDim2.new(1, -95, 0.5, -12)
     btn.BackgroundColor3 = Config.Color.Background.Secondary
@@ -3210,40 +2829,30 @@ function GUI:CreateDropdown(parent, text, options, defaultOption, callback)
     btn.TextSize = 10
     btn.AutoButtonColor = false
     btn.ZIndex = 55
-
     Util:Corner(btn, 4)
-
     btn.Parent = dropdown
-
     local currentIndex = 1
-
-    for i, opt in ipairs(options)do
+    for i, opt in ipairs(options) do
         if opt == defaultOption then
             currentIndex = i
-
             break
         end
     end
-
     btn.MouseButton1Click:Connect(function()
         currentIndex = currentIndex + 1
-
         if currentIndex > #options then
             currentIndex = 1
         end
-
         btn.Text = options[currentIndex]
-
         if callback then
             pcall(callback, options[currentIndex])
         end
     end)
-
     return dropdown
 end
-function GUI:CreateVisualsTab()
-    local player = self:CreateSection('Player \u{2014} ESP')
 
+function GUI:CreateVisualsTab()
+    local player = self:CreateSection('Player — ESP')
     self:CreateToggle(player, 'Highlight Murder', Config.Settings.ESP.Murder, function(s)
         Config.Settings.ESP.Murder = s
     end)
@@ -3266,15 +2875,11 @@ function GUI:CreateVisualsTab()
         Config.Settings.Colors.InnocentESP = c
     end)
 
-    local hatSec = self:CreateSection('Player \u{2014} Chinese Hat')
-
+    local hatSec = self:CreateSection('Player — Chinese Hat')
     self:CreateToggle(hatSec, 'Enable Hat', false, function(s)
         Hat_ToggleEnabled(s)
     end)
-    self:CreateDropdown(hatSec, 'Hat Style', {
-        'Classic',
-        'Drawing',
-    }, 'Classic', function(v)
+    self:CreateDropdown(hatSec, 'Hat Style', { 'Classic', 'Drawing' }, 'Classic', function(v)
         Hat_ChangeStyle(v)
     end)
     self:CreateToggle(hatSec, 'Rainbow Mode', false, function(s)
@@ -3296,127 +2901,103 @@ function GUI:CreateVisualsTab()
         HatVariables.color = c
     end)
 
-    local trailSec = self:CreateSection('Player \u{2014} Trail')
-
+    local trailSec = self:CreateSection('Player — Trail')
     self:CreateToggle(trailSec, 'Enable Trail', false, function(s)
         Trail_ToggleEnabled(s)
     end)
     self:CreateToggle(trailSec, 'Gradient Mode', false, function(s)
         TrailVariables.isGradient = s
-
         if TrailVariables.enabled and LocalPlayer.Character then
             Trail_AddToCharacter(LocalPlayer.Character)
         end
     end)
     self:CreateSlider(trailSec, 'Lifetime', 1, 30, 5, function(v)
         TrailVariables.lifetime = v / 10
-
         Trail_UpdateAll()
     end)
     self:CreateToggle(trailSec, 'Rainbow', false, function(s)
         TrailVariables.rainbow = s
-
         Trail_UpdateAll()
     end)
     self:CreateColorPicker(trailSec, 'Static Color', TrailVariables.colorStatic, function(c)
         TrailVariables.colorStatic = c
-
         Trail_UpdateAll()
     end)
 
-    local ffSec = self:CreateSection('Player \u{2014} ForceField')
-
+    local ffSec = self:CreateSection('Player — ForceField')
     self:CreateToggle(ffSec, 'Enable ForceField', false, function(s)
         ForceField_ToggleEnabled(s)
     end)
     self:CreateToggle(ffSec, 'Rainbow Mode', false, function(s)
         ForceFieldVariables.rainbow = s
-
         ForceField_Update()
     end)
     self:CreateColorPicker(ffSec, 'ForceField Color', ForceFieldVariables.color, function(c)
         ForceFieldVariables.color = c
-
         if ForceFieldVariables.enabled then
             ForceField_Apply(LocalPlayer.Character)
         end
     end)
 
-    local auraSec = self:CreateSection('Player \u{2014} Aura Trailer')
-
+    local auraSec = self:CreateSection('Player — Aura Trailer')
     self:CreateToggle(auraSec, 'Enable Aura Trailer', false, function(s)
         AuraTrailer_Toggle(s)
     end)
     self:CreateColorPicker(auraSec, 'Aura Color', AuraTrailerVariables.color, function(c)
         AuraTrailerVariables.color = c
-
         if AuraTrailerVariables.enabled then
             AuraTrailer_Update()
         end
     end)
     self:CreateSlider(auraSec, 'Lifetime', 1, 30, 5, function(v)
         AuraTrailerVariables.lifetime = v / 10
-
         if AuraTrailerVariables.enabled then
             AuraTrailer_Update()
         end
     end)
 
-    local classicAura = self:CreateSection('Player \u{2014} Classic Aura')
-
+    local classicAura = self:CreateSection('Player — Classic Aura')
     self:CreateToggle(classicAura, 'Enable Classic Aura', false, function(s)
         ClassicAuraEnabled = s
-
         ClassicAura_RefreshAll()
     end)
-
-    for _, name in ipairs(AuraModels)do
+    for _, name in ipairs(AuraModels) do
         self:CreateToggle(classicAura, name, false, function(s)
             ClassicAuraSelected[name] = s
-
             ClassicAura_RefreshAll()
         end)
     end
 
-    local particleAura = self:CreateSection('Player \u{2014} Particle Aura')
-
+    local particleAura = self:CreateSection('Player — Particle Aura')
     self:CreateToggle(particleAura, 'Enable Particle Aura', false, function(s)
         ParticleAuraEnabled = s
-
         ParticleAura_RefreshAll()
     end)
     self:CreateColorPicker(particleAura, 'Particle Color', ParticleAuraColor, function(c)
         ParticleAuraColor = c
-
         ParticleAura_RefreshAll()
     end)
-
-    for _, name in ipairs(PARTICLE_AURA_NAMES)do
+    for _, name in ipairs(PARTICLE_AURA_NAMES) do
         self:CreateToggle(particleAura, name, false, function(s)
             ParticleAuraSelected[name] = s
-
             ParticleAura_RefreshAll()
         end)
     end
 
-    local skySec = self:CreateSection('World \u{2014} Skybox')
+    local skySec = self:CreateSection('World — Skybox')
     local skyList = {}
-
-    for k in pairs(SkyboxAssets)do
+    for k in pairs(SkyboxAssets) do
         table.insert(skyList, k)
     end
-
     table.sort(skyList)
     self:CreateDropdown(skySec, 'Select Skybox', skyList, 'HD', function(v)
         SkyboxVariables.current = v
-
         if SkyboxVariables.customEnabled then
             Skybox_Apply(v)
         end
     end)
     self:CreateToggle(skySec, 'Enable Skybox', false, function(s)
         SkyboxVariables.customEnabled = s
-
         if s then
             Skybox_Apply(SkyboxVariables.current)
         else
@@ -3424,8 +3005,7 @@ function GUI:CreateVisualsTab()
         end
     end)
 
-    local lightSec = self:CreateSection('World \u{2014} Lighting')
-
+    local lightSec = self:CreateSection('World — Lighting')
     self:CreateToggle(lightSec, 'Time Changer', false, function(s)
         WorldVariables.timeEnabled = s
     end)
@@ -3434,7 +3014,6 @@ function GUI:CreateVisualsTab()
     end)
     self:CreateToggle(lightSec, 'Full Bright', false, function(s)
         WorldVariables.fullBrightEnabled = s
-
         if not s then
             Lighting.Brightness = defaultLighting.Brightness
             Lighting.GlobalShadows = defaultLighting.GlobalShadows
@@ -3442,11 +3021,9 @@ function GUI:CreateVisualsTab()
         end
     end)
 
-    local nebulaSec = self:CreateSection('World \u{2014} Nebula')
-
+    local nebulaSec = self:CreateSection('World — Nebula')
     self:CreateToggle(nebulaSec, 'Enable Nebula', false, function(s)
         NebulaVariables.enabled = s
-
         if s then
             Nebula_Enable()
         else
@@ -3455,12 +3032,10 @@ function GUI:CreateVisualsTab()
     end)
     self:CreateColorPicker(nebulaSec, 'Nebula Color', NebulaVariables.themeColor, function(c)
         NebulaVariables.themeColor = c
-
         Nebula_UpdateColor()
     end)
 
-    local screenSec = self:CreateSection('World \u{2014} Screen Effect')
-
+    local screenSec = self:CreateSection('World — Screen Effect')
     self:CreateToggle(screenSec, 'Enable Screen Stretch', false, function(s)
         Screen_Toggle(s)
     end)
@@ -3468,8 +3043,7 @@ function GUI:CreateVisualsTab()
         WorldVariables.screenIntensity = v / 100
     end)
 
-    local utilSec = self:CreateSection('World \u{2014} Utilities')
-
+    local utilSec = self:CreateSection('World — Utilities')
     self:CreateToggle(utilSec, 'Anime Image', false, function(s)
         Anime_Toggle(s)
     end)
@@ -3481,9 +3055,9 @@ function GUI:CreateVisualsTab()
         end
     end)
 end
+
 function GUI:CreateCombatTab()
     local camlock = self:CreateSection('Camlock Aim')
-
     self:CreateToggle(camlock, 'Camlock Aim', Config.Settings.Combat.Camlock, function(s)
         Config.Settings.Combat.Camlock = s
     end)
@@ -3501,7 +3075,6 @@ function GUI:CreateCombatTab()
     end)
 
     local silent = self:CreateSection('Silent Aim')
-
     self:CreateToggle(silent, 'Silent Aim', Config.Settings.Combat.SilentAim, function(s)
         Config.Settings.Combat.SilentAim = s
     end)
@@ -3513,7 +3086,6 @@ function GUI:CreateCombatTab()
     end)
 
     local shootSec = self:CreateSection('Shoot & Kill')
-
     self:CreateToggle(shootSec, 'Draggable Shoot Button', false, function(s)
         if s then
             createDraggableShootButton()
@@ -3535,7 +3107,6 @@ function GUI:CreateCombatTab()
     end)
 
     local farmSec = self:CreateSection('AutoFarm & Bomb')
-
     self:CreateToggle(farmSec, 'AutoFarm Coins', Config.Settings.Combat.AutoFarm, function(s)
         Config.Settings.Combat.AutoFarm = s
     end)
@@ -3543,9 +3114,9 @@ function GUI:CreateCombatTab()
         executeBombJump()
     end)
 end
+
 function GUI:CreateRageTab()
     local rage = self:CreateSection('Rage Features')
-
     self:CreateToggle(rage, 'SpinBot', Config.Settings.Rage.SpinBot, function(s)
         Config.Settings.Rage.SpinBot = s
     end)
@@ -3574,36 +3145,55 @@ function GUI:CreateRageTab()
         Config.Settings.Rage.FlySpeed = v
     end)
 end
+
 function GUI:CreateFunTab()
     local fling = self:CreateSection('Fling (Click Player)')
-
-    for _, player in ipairs(Players:GetPlayers())do
+    for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             self:CreateButton(fling, player.DisplayName .. ' (@' .. player.Name .. ')', function()
                 flingPlayer(player)
             end)
         end
     end
-
     self:CreateButton(fling, 'Refresh Player List', function()
         self:LoadTab('Fun')
     end)
 
+    -- ==================== HITSOUND GUI ====================
     local hitsound = self:CreateSection('HitSound')
 
-    self:CreateDropdown(hitsound, 'HitSound', {
-        'None',
-        'Neverlose',
-        'Skeet',
-        'Bonk',
-        'Pop',
-    }, 'None', function(sound)
-        print('[HITSOUND]', sound)
+    local gunshotOptions = { "None" }
+    for name in pairs(gunshotSounds) do
+        table.insert(gunshotOptions, name)
+    end
+    table.sort(gunshotOptions)
+
+    local knifeOptions = { "None" }
+    for name in pairs(knifeKillSounds) do
+        table.insert(knifeOptions, name)
+    end
+    table.sort(knifeOptions)
+
+    self:CreateDropdown(hitsound, 'Gunshot Sound', gunshotOptions, selectedGunshot, function(sound)
+        if sound == "None" then
+            selectedGunshot = nil
+        else
+            selectedGunshot = sound
+        end
     end)
+
+    self:CreateDropdown(hitsound, 'Knife Kill Sound', knifeOptions, selectedKnifeKill, function(sound)
+        if sound == "None" then
+            selectedKnifeKill = nil
+        else
+            selectedKnifeKill = sound
+        end
+    end)
+    -- ==================== END HITSOUND GUI ====================
 end
+
 function GUI:CreateSettingsTab()
     local gui = self:CreateSection('GUI Settings')
-
     self:CreateSlider(gui, 'Transparency', 0, 100, 10, function(v)
         if self.Main.Window then
             self.Main.Window.BackgroundTransparency = v / 100
@@ -3614,7 +3204,6 @@ function GUI:CreateSettingsTab()
     end)
 
     local keys = self:CreateSection('Keybinds')
-
     self:CreateKeybindButton(keys, 'Toggle GUI', Config.Settings.Keybinds.ToggleGUI, function(key)
         Config.Settings.Keybinds.ToggleGUI = key
     end)
@@ -3628,9 +3217,9 @@ function GUI:CreateSettingsTab()
         Config.Settings.Keybinds.SilentAim = key
     end)
 end
+
 function GUI:CreateMiscTab()
     local util = self:CreateSection('Utilities')
-
     self:CreateButton(util, 'Copy Game Link', function()
         if setclipboard then
             setclipboard('https://www.roblox.com/games/' .. game.PlaceId)
@@ -3643,32 +3232,27 @@ function GUI:CreateMiscTab()
     end)
 
     local info = self:CreateSection('Information')
-
     self:CreateLabel(info, 'Developer', Config.Developer)
     self:CreateLabel(info, 'Version', Config.Version)
     self:CreateLabel(info, 'Discord', Config.Discord)
 end
+
 function GUI:ToggleMain()
     self.Main.IsOpen = not self.Main.IsOpen
-
     if self.Main.IsOpen then
         self.Main.Blur.Visible = true
         self.Main.Window.Visible = true
-
-        Util:Tween(self.Main.Blur, {BackgroundTransparency = 0.2}, Config.Anim.Slow)
-
+        Util:Tween(self.Main.Blur, { BackgroundTransparency = 0.2 }, Config.Anim.Slow)
         self.Main.Window.Position = UDim2.new(0.5, -Config.Size.Window.Width / 2, 1.5, 0)
-
         Util:Tween(self.Main.Window, {
             Position = UDim2.new(0.5, -Config.Size.Window.Width / 2, 0.5, -Config.Size.Window.Height / 2),
         }, 0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
     else
-        Util:Tween(self.Main.Blur, {BackgroundTransparency = 1}, Config.Anim.Normal)
+        Util:Tween(self.Main.Blur, { BackgroundTransparency = 1 }, Config.Anim.Normal)
         Util:Tween(self.Main.Window, {
             Position = UDim2.new(0.5, -Config.Size.Window.Width / 2, 1.5, 0),
         }, 0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In)
         task.wait(0.4)
-
         self.Main.Blur.Visible = false
         self.Main.Window.Visible = false
     end
@@ -3684,24 +3268,25 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         GUI.ScreenGui:Destroy()
         Snow:Destroy()
         removeDraggableShootButton()
-
-        for _, c in ipairs(Features.Connections)do
+        for _, c in ipairs(Features.Connections) do
             pcall(function()
                 c:Disconnect()
             end)
         end
     end
 end)
+
 task.spawn(function()
     while true do
         if Config.Settings.Combat.AutoShoot then
             pcall(shootMurdererDirect)
         end
-
         task.wait(0.12)
     end
 end)
+
 GUI:Initialize()
+
 pcall(function()
     StarterGui:SetCore('SendNotification', {
         Title = '\u{1f36c} Candy Zone MM2',
@@ -3709,6 +3294,7 @@ pcall(function()
         Duration = 5,
     })
 end)
+
 print('\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}')
 print('\u{1f36c} CANDY ZONE MM2 v' .. Config.Version)
 print('\u{2705} Successfully Loaded!')
