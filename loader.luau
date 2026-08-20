@@ -15,10 +15,6 @@ local StarterGui = game:GetService('StarterGui')
 local Lighting = game:GetService('Lighting')
 local ReplicatedStorage = game:GetService('ReplicatedStorage')
 local VirtualInputManager = game:GetService('VirtualInputManager')
-local MaterialService = game:GetService('MaterialService')
-local ContentProvider = game:GetService('ContentProvider')
-local GuiService = game:GetService('GuiService')
-local TeleportService = game:GetService('TeleportService')
 local SoundService = game:GetService('SoundService')
 local LocalPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -124,6 +120,8 @@ local Config = {
             AutoKillAll = false,
             AutoFarm = false,
             BombJump = false,
+            AntiFling = false,
+            AntiVoid = false,
         },
         Rage = {
             SpinBot = false,
@@ -178,90 +176,6 @@ if DefaultSky then
     DefaultSkySettings.SkyboxRt = DefaultSky.SkyboxRt
     DefaultSkySettings.SkyboxUp = DefaultSky.SkyboxUp
 end
-
-local AuraModels = {
-    'Godly',
-    'Super Sayien',
-    'North Star',
-    'Blue Lord',
-    'Pink Aura',
-    'Angel Wing',
-    'Sweet Heart',
-    'Ethereal Aura',
-}
-
-local AuraModelIDs = {
-    Godly = 'rbxassetid://16699750981',
-    ['Super Sayien'] = 'rbxassetid://116109508364297',
-    ['North Star'] = 'rbxassetid://83945069652732',
-    ['Blue Lord'] = 'rbxassetid://10974316799',
-    ['Pink Aura'] = 'rbxassetid://115980859615239',
-    ['Angel Wing'] = 'rbxassetid://90022969696073',
-    ['Sweet Heart'] = 'rbxassetid://91724768175470',
-    ['Ethereal Aura'] = 'rbxassetid://97041568674250',
-}
-
-local activeClassicAuras = {}
-
-local PARTICLE_AURA_DATA = {
-    { 'starlight', 'rbxassetid://134645216613107' },
-    { 'heavenly', 'rbxassetid://139300897520961' },
-    { 'ribbon', 'rbxassetid://132069507632161' },
-    { 'sakura', 'rbxassetid://81755778619404' },
-    { 'angel', 'rbxassetid://97658130917593' },
-    { 'wind', 'rbxassetid://80694081850877' },
-    { 'flow', 'rbxassetid://119913533725648' },
-    { 'star', 'rbxassetid://73754563740680' },
-    { 'neon', 'rbxassetid://18498709246' },
-}
-
-local PARTICLE_AURA_NAMES = {}
-local particleAuraIdByName = {}
-
-for _, row in ipairs(PARTICLE_AURA_DATA) do
-    table.insert(PARTICLE_AURA_NAMES, row[1])
-    particleAuraIdByName[row[1]] = row[2]
-end
-
-local loadedParticleAuras, activeParticleAuras = {}, {}
-
-local MINECRAFT_VARIANTS = {
-    Brick = { BaseMaterial = Enum.Material.Brick, Texture = 'rbxassetid://10777285622' },
-    Concrete = { BaseMaterial = Enum.Material.Concrete, Texture = 'rbxassetid://15622710576' },
-    CorrodedMetal = { BaseMaterial = Enum.Material.CorrodedMetal, Texture = 'rbxassetid://78612695839404' },
-    Grass = { BaseMaterial = Enum.Material.Grass, Texture = 'rbxassetid://9267183930' },
-    Metal = { BaseMaterial = Enum.Material.Metal, Texture = 'rbxassetid://121650613091353' },
-    Sand = { BaseMaterial = Enum.Material.Sand, Texture = 'rbxassetid://12624140843' },
-    Slate = { BaseMaterial = Enum.Material.Slate, Texture = 'rbxassetid://8676746437' },
-    Wood = { BaseMaterial = Enum.Material.Wood, Texture = 'rbxassetid://3258599312' },
-    WoodPlanks = { BaseMaterial = Enum.Material.WoodPlanks, Texture = 'rbxassetid://8676581022' },
-}
-
-local MATERIAL_VARIANT_BY_MATERIAL = {
-    [Enum.Material.Brick] = 'Brick',
-    [Enum.Material.Concrete] = 'Concrete',
-    [Enum.Material.CorrodedMetal] = 'CorrodedMetal',
-    [Enum.Material.Grass] = 'Grass',
-    [Enum.Material.Metal] = 'Metal',
-    [Enum.Material.Sand] = 'Sand',
-    [Enum.Material.Slate] = 'Slate',
-    [Enum.Material.Wood] = 'Wood',
-    [Enum.Material.WoodPlanks] = 'WoodPlanks',
-}
-
-local MINECRAFT_TERRAIN_COLORS = {
-    [Enum.Material.Grass] = Color3.fromRGB(106, 170, 64),
-    [Enum.Material.Ground] = Color3.fromRGB(134, 96, 67),
-    [Enum.Material.Mud] = Color3.fromRGB(102, 76, 51),
-    [Enum.Material.Sand] = Color3.fromRGB(219, 211, 160),
-    [Enum.Material.Rock] = Color3.fromRGB(122, 122, 122),
-    [Enum.Material.Slate] = Color3.fromRGB(90, 90, 90),
-    [Enum.Material.Snow] = Color3.fromRGB(245, 245, 245),
-    [Enum.Material.Water] = Color3.fromRGB(63, 118, 228),
-}
-
-local LarpticTextureState = setmetatable({}, { __mode = 'k' })
-local LarpticMaterialVariantsBuilt = false
 
 local SkyboxAssets = {
     ['Black Storm'] = {
@@ -458,19 +372,6 @@ local AnimeVariables = {
     gui = nil,
 }
 
-local FPSVariables = {
-    fpsPing1Enabled = false,
-    fpsPing2Enabled = false,
-}
-
-local LarpticAtmosphere = nil
-local ClassicAuraEnabled = false
-local ClassicAuraSelected = {}
-local ParticleAuraEnabled = false
-local ParticleAuraSelected = {}
-local ParticleAuraColor = Color3.fromRGB(133, 220, 255)
-local TexturePackEnabled = false
-
 local Features = {
     Connections = {},
     Highlights = {},
@@ -515,11 +416,11 @@ local function hookSound(sound)
     hooked[sound] = true
 
     sound.Played:Connect(function()
-        if sound.Name == "Gunshot" and gunshotSounds[selectedGunshot] and sound.SoundId ~= gunshotSounds[selectedGunshot] then
+        if sound.Name == "Gunshot" and selectedGunshot and selectedGunshot ~= "None" and gunshotSounds[selectedGunshot] and sound.SoundId ~= gunshotSounds[selectedGunshot] then
             sound.SoundId = gunshotSounds[selectedGunshot]
             sound.TimePosition = 0
             sound:Play()
-        elseif sound.Name == "Kill" and knifeKillSounds[selectedKnifeKill] and sound.SoundId ~= knifeKillSounds[selectedKnifeKill] then
+        elseif sound.Name == "Kill" and selectedKnifeKill and selectedKnifeKill ~= "None" and knifeKillSounds[selectedKnifeKill] and sound.SoundId ~= knifeKillSounds[selectedKnifeKill] then
             sound.SoundId = knifeKillSounds[selectedKnifeKill]
             sound.TimePosition = 0
             sound:Play()
@@ -850,7 +751,7 @@ local function setFly(state)
             flyBG:Destroy()
         end
         flyBV = Instance.new('BodyVelocity')
-        flyBV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        flyBV.MaxForce = Vector3.new(9e9, 9E9, 9e9)
         flyBV.Velocity = Vector3.new(0, 0, 0)
         flyBV.Parent = hrp
         flyBG = Instance.new('BodyGyro')
@@ -1369,6 +1270,38 @@ task.spawn(function()
     end
 end)
 
+-- ==================== ANTI FLING ====================
+addConn(RunService.Heartbeat:Connect(function()
+    if not Config.Settings.Combat.AntiFling then
+        return
+    end
+    local char = LocalPlayer.Character
+    if not char then
+        return
+    end
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA('BasePart') then
+            for _, otherPlayer in ipairs(Players:GetPlayers()) do
+                if otherPlayer ~= LocalPlayer and otherPlayer.Character then
+                    for _, otherPart in ipairs(otherPlayer.Character:GetDescendants()) do
+                        if otherPart:IsA('BasePart') then
+                            pcall(function()
+                                part.CanCollide = false
+                                local nc = Instance.new('NoCollisionConstraint')
+                                nc.Part0 = part
+                                nc.Part1 = otherPart
+                                nc.Parent = part
+                                game:GetService('Debris'):AddItem(nc, 0.1)
+                            end)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end))
+-- ==================== END ANTI FLING ====================
+
 local function Hat_RemoveClassic()
     if HatVariables.parts[LocalPlayer.Character] then
         HatVariables.parts[LocalPlayer.Character]:Destroy()
@@ -1694,95 +1627,6 @@ local function AuraTrailer_Update()
     end
 end
 
--- ==================== FIXED CLASSIC AURA ====================
-local function ClassicAura_RefreshAll()
-    for _, model in pairs(activeClassicAuras) do
-        if model then
-            model:Destroy()
-        end
-    end
-    activeClassicAuras = {}
-
-    if not ClassicAuraEnabled or not LocalPlayer.Character then
-        return
-    end
-
-    local hrp = LocalPlayer.Character:FindFirstChild('HumanoidRootPart')
-    if not hrp then
-        return
-    end
-
-    for name, selected in pairs(ClassicAuraSelected) do
-        if selected and AuraModelIDs[name] then
-            local success, model = pcall(function()
-                return game:GetObjects(AuraModelIDs[name])[1]
-            end)
-
-            if success and model then
-                -- Правильное позиционирование
-                model:PivotTo(hrp.CFrame)
-                model.Parent = LocalPlayer.Character
-
-                for _, p in ipairs(model:GetDescendants()) do
-                    if p:IsA('BasePart') then
-                        p.CanCollide = false
-                        p.Anchored = false
-                        p.Massless = true          -- критично
-                        p.CastShadow = false
-                        p.Transparency = p.Transparency
-
-                        local w = Instance.new('WeldConstraint')
-                        w.Part0 = hrp
-                        w.Part1 = p
-                        w.Parent = p
-                    end
-                end
-
-                if model.PrimaryPart then
-                    model:SetPrimaryPartCFrame(hrp.CFrame)
-                end
-
-                table.insert(activeClassicAuras, model)
-            end
-        end
-    end
-end
--- ==================== END FIXED CLASSIC AURA ====================
-
-local function ParticleAura_RefreshAll()
-    for _, a in pairs(activeParticleAuras) do
-        if a then
-            a:Destroy()
-        end
-    end
-    activeParticleAuras = {}
-    if not ParticleAuraEnabled or not LocalPlayer.Character then
-        return
-    end
-    local hrp = LocalPlayer.Character:FindFirstChild('HumanoidRootPart')
-    if not hrp then
-        return
-    end
-    for name, selected in pairs(ParticleAuraSelected) do
-        if selected and particleAuraIdByName[name] then
-            local att = Instance.new('Attachment')
-            att.Parent = hrp
-            local pe = Instance.new('ParticleEmitter')
-            pe.Texture = particleAuraIdByName[name]
-            pe.Color = ColorSequence.new(ParticleAuraColor)
-            pe.Rate = 20
-            pe.Lifetime = NumberRange.new(1, 2)
-            pe.Speed = NumberRange.new(1, 3)
-            pe.Size = NumberSequence.new({
-                NumberSequenceKeypoint.new(0, 0.5),
-                NumberSequenceKeypoint.new(1, 0),
-            })
-            pe.Parent = att
-            table.insert(activeParticleAuras, att)
-        end
-    end
-end
-
 local function Skybox_Apply(name)
     local data = SkyboxAssets[name]
     if not data then
@@ -1884,22 +1728,6 @@ local function Screen_Toggle(value)
     end
 end
 
-local function applyAtmosphere()
-    if LarpticAtmosphere then
-        LarpticAtmosphere:Destroy()
-    end
-    LarpticAtmosphere = Instance.new('Atmosphere')
-    LarpticAtmosphere.Parent = Lighting
-end
-
-local function applyTexturePack()
-    TexturePackEnabled = true
-end
-
-local function clearTexturePack()
-    TexturePackEnabled = false
-end
-
 local function Anime_Toggle(value)
     AnimeVariables.enabled = value
     if value then
@@ -1940,8 +1768,6 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     if AnimeVariables.enabled then
         Anime_Toggle(true)
     end
-    ClassicAura_RefreshAll()
-    ParticleAura_RefreshAll()
 end)
 
 RunService.Heartbeat:Connect(function()
@@ -2956,33 +2782,57 @@ function GUI:CreateVisualsTab()
         end
     end)
 
-    local classicAura = self:CreateSection('Player — Classic Aura')
-    self:CreateToggle(classicAura, 'Enable Classic Aura', false, function(s)
-        ClassicAuraEnabled = s
-        ClassicAura_RefreshAll()
-    end)
-    for _, name in ipairs(AuraModels) do
-        self:CreateToggle(classicAura, name, false, function(s)
-            ClassicAuraSelected[name] = s
-            ClassicAura_RefreshAll()
-        end)
+    -- ==================== HITSOUND SECTION (fixed) ====================
+    local hitsoundSec = self:CreateSection('HitSound')
+    
+    local gunshotOptions = { "None" }
+    for name in pairs(gunshotSounds) do
+        table.insert(gunshotOptions, name)
     end
+    table.sort(gunshotOptions)
 
-    local particleAura = self:CreateSection('Player — Particle Aura')
-    self:CreateToggle(particleAura, 'Enable Particle Aura', false, function(s)
-        ParticleAuraEnabled = s
-        ParticleAura_RefreshAll()
-    end)
-    self:CreateColorPicker(particleAura, 'Particle Color', ParticleAuraColor, function(c)
-        ParticleAuraColor = c
-        ParticleAura_RefreshAll()
-    end)
-    for _, name in ipairs(PARTICLE_AURA_NAMES) do
-        self:CreateToggle(particleAura, name, false, function(s)
-            ParticleAuraSelected[name] = s
-            ParticleAura_RefreshAll()
-        end)
+    local knifeOptions = { "None" }
+    for name in pairs(knifeKillSounds) do
+        table.insert(knifeOptions, name)
     end
+    table.sort(knifeOptions)
+
+    self:CreateDropdown(hitsoundSec, 'Gunshot Sound', gunshotOptions, selectedGunshot, function(sound)
+        selectedGunshot = sound == "None" and nil or sound
+    end)
+
+    self:CreateButton(hitsoundSec, '🔊 Preview Gunshot', function()
+        if selectedGunshot and selectedGunshot ~= "None" and gunshotSounds[selectedGunshot] then
+            local previewSound = Instance.new("Sound")
+            previewSound.SoundId = gunshotSounds[selectedGunshot]
+            previewSound.Volume = 0.5
+            previewSound.Parent = SoundService
+            previewSound:Play()
+            game:GetService("Debris"):AddItem(previewSound, 3)
+        end
+    end)
+
+    self:CreateDropdown(hitsoundSec, 'Knife Kill Sound', knifeOptions, selectedKnifeKill, function(sound)
+        selectedKnifeKill = sound == "None" and nil or sound
+    end)
+
+    self:CreateButton(hitsoundSec, '🔊 Preview Knife Kill', function()
+        if selectedKnifeKill and selectedKnifeKill ~= "None" and knifeKillSounds[selectedKnifeKill] then
+            local previewSound = Instance.new("Sound")
+            previewSound.SoundId = knifeKillSounds[selectedKnifeKill]
+            previewSound.Volume = 0.5
+            previewSound.Parent = SoundService
+            previewSound:Play()
+            game:GetService("Debris"):AddItem(previewSound, 3)
+        end
+    end)
+
+    self:CreateButton(hitsoundSec, '🗑️ Clear Selection', function()
+        selectedGunshot = nil
+        selectedKnifeKill = nil
+        self:LoadTab('Visuals')
+    end)
+    -- ==================== END HITSOUND ====================
 
     local skySec = self:CreateSection('World — Skybox')
     local skyList = {}
@@ -3047,13 +2897,6 @@ function GUI:CreateVisualsTab()
     self:CreateToggle(utilSec, 'Anime Image', false, function(s)
         Anime_Toggle(s)
     end)
-    self:CreateToggle(utilSec, 'Minecraft Textures', false, function(s)
-        if s then
-            applyTexturePack()
-        else
-            clearTexturePack()
-        end
-    end)
 end
 
 function GUI:CreateCombatTab()
@@ -3113,6 +2956,21 @@ function GUI:CreateCombatTab()
     self:CreateButton(farmSec, 'Bomb Jump', function()
         executeBombJump()
     end)
+
+    -- ==================== OTHER SECTION ====================
+    local otherSec = self:CreateSection('Other')
+    self:CreateToggle(otherSec, 'Anti Fling', Config.Settings.Combat.AntiFling, function(s)
+        Config.Settings.Combat.AntiFling = s
+    end)
+    self:CreateToggle(otherSec, 'Anti-Void', Config.Settings.Combat.AntiVoid, function(s)
+        Config.Settings.Combat.AntiVoid = s
+        if s then
+            workspace.FallenPartsDestroyHeight = -0/0
+        else
+            workspace.FallenPartsDestroyHeight = Features.FPDH
+        end
+    end)
+    -- ==================== END OTHER ====================
 end
 
 function GUI:CreateRageTab()
@@ -3158,38 +3016,6 @@ function GUI:CreateFunTab()
     self:CreateButton(fling, 'Refresh Player List', function()
         self:LoadTab('Fun')
     end)
-
-    -- ==================== HITSOUND GUI ====================
-    local hitsound = self:CreateSection('HitSound')
-
-    local gunshotOptions = { "None" }
-    for name in pairs(gunshotSounds) do
-        table.insert(gunshotOptions, name)
-    end
-    table.sort(gunshotOptions)
-
-    local knifeOptions = { "None" }
-    for name in pairs(knifeKillSounds) do
-        table.insert(knifeOptions, name)
-    end
-    table.sort(knifeOptions)
-
-    self:CreateDropdown(hitsound, 'Gunshot Sound', gunshotOptions, selectedGunshot, function(sound)
-        if sound == "None" then
-            selectedGunshot = nil
-        else
-            selectedGunshot = sound
-        end
-    end)
-
-    self:CreateDropdown(hitsound, 'Knife Kill Sound', knifeOptions, selectedKnifeKill, function(sound)
-        if sound == "None" then
-            selectedKnifeKill = nil
-        else
-            selectedKnifeKill = sound
-        end
-    end)
-    -- ==================== END HITSOUND GUI ====================
 end
 
 function GUI:CreateSettingsTab()
@@ -3225,10 +3051,12 @@ function GUI:CreateMiscTab()
             setclipboard('https://www.roblox.com/games/' .. game.PlaceId)
         end
     end)
-    self:CreateButton(util, 'Lower Graphics', function()
-        Lighting.GlobalShadows = false
-        Lighting.FogEnd = 9e9
-        settings().Rendering.QualityLevel = 1
+    self:CreateButton(util, 'Lower Graphics (Make All Plastic)', function()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA('BasePart') then
+                obj.Material = Enum.Material.Plastic
+            end
+        end
     end)
 
     local info = self:CreateSection('Information')
