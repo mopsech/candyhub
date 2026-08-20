@@ -15,9 +15,14 @@ local StarterGui = game:GetService('StarterGui')
 local Lighting = game:GetService('Lighting')
 local ReplicatedStorage = game:GetService('ReplicatedStorage')
 local VirtualInputManager = game:GetService('VirtualInputManager')
+local MaterialService = game:GetService('MaterialService')
+local ContentProvider = game:GetService('ContentProvider')
+local GuiService = game:GetService('GuiService')
+local TeleportService = game:GetService('TeleportService')
 local LocalPlayer = Players.LocalPlayer
+local camera = workspace.CurrentCamera
 local Config = {
-    Version = '0.1 Pre-Release',
+    Version = '0.2 Full',
     Developer = 'mopsech',
     Discord = 'discord.gg/3KjWyZ6uBu',
     Color = {
@@ -114,6 +119,9 @@ local Config = {
             SilentFOV = 120,
             SilentPredict = 100,
             VisibleCheck = true,
+            AutoKillAll = false,
+            AutoFarm = false,
+            BombJump = false,
         },
         Rage = {
             SpinBot = false,
@@ -171,6 +179,374 @@ local ColorPresets = {
         Color = Color3.fromRGB(255, 140, 0),
     },
 }
+local defaultLighting = {
+    Brightness = Lighting.Brightness,
+    ClockTime = Lighting.ClockTime,
+    GlobalShadows = Lighting.GlobalShadows,
+    OutdoorAmbient = Lighting.OutdoorAmbient,
+    Ambient = Lighting.Ambient,
+    FogStart = Lighting.FogStart,
+    FogEnd = Lighting.FogEnd,
+    FogColor = Lighting.FogColor,
+}
+local DefaultSky = Lighting:FindFirstChildOfClass('Sky')
+local DefaultSkySettings = {}
+
+if DefaultSky then
+    DefaultSkySettings.SkyboxBk = DefaultSky.SkyboxBk
+    DefaultSkySettings.SkyboxDn = DefaultSky.SkyboxDn
+    DefaultSkySettings.SkyboxFt = DefaultSky.SkyboxFt
+    DefaultSkySettings.SkyboxLf = DefaultSky.SkyboxLf
+    DefaultSkySettings.SkyboxRt = DefaultSky.SkyboxRt
+    DefaultSkySettings.SkyboxUp = DefaultSky.SkyboxUp
+end
+
+local AuraModels = {
+    'Godly',
+    'Super Sayien',
+    'North Star',
+    'Blue Lord',
+    'Pink Aura',
+    'Angel Wing',
+    'Sweet Heart',
+    'Ethereal Aura',
+}
+local AuraModelIDs = {
+    Godly = 'rbxassetid://16699750981',
+    ['Super Sayien'] = 'rbxassetid://116109508364297',
+    ['North Star'] = 'rbxassetid://83945069652732',
+    ['Blue Lord'] = 'rbxassetid://10974316799',
+    ['Pink Aura'] = 'rbxassetid://115980859615239',
+    ['Angel Wing'] = 'rbxassetid://90022969696073',
+    ['Sweet Heart'] = 'rbxassetid://91724768175470',
+    ['Ethereal Aura'] = 'rbxassetid://97041568674250',
+}
+local activeClassicAuras = {}
+local PARTICLE_AURA_DATA = {
+    {
+        'starlight',
+        'rbxassetid://134645216613107',
+    },
+    {
+        'heavenly',
+        'rbxassetid://139300897520961',
+    },
+    {
+        'ribbon',
+        'rbxassetid://132069507632161',
+    },
+    {
+        'sakura',
+        'rbxassetid://81755778619404',
+    },
+    {
+        'angel',
+        'rbxassetid://97658130917593',
+    },
+    {
+        'wind',
+        'rbxassetid://80694081850877',
+    },
+    {
+        'flow',
+        'rbxassetid://119913533725648',
+    },
+    {
+        'star',
+        'rbxassetid://73754563740680',
+    },
+    {
+        'neon',
+        'rbxassetid://18498709246',
+    },
+}
+local PARTICLE_AURA_NAMES = {}
+local particleAuraIdByName = {}
+
+for _, row in ipairs(PARTICLE_AURA_DATA)do
+    table.insert(PARTICLE_AURA_NAMES, row[1])
+
+    particleAuraIdByName[row[1] ] = row[2]
+end
+
+local loadedParticleAuras, activeParticleAuras = {}, {}
+local MINECRAFT_VARIANTS = {
+    Brick = {
+        BaseMaterial = Enum.Material.Brick,
+        Texture = 'rbxassetid://10777285622',
+    },
+    Concrete = {
+        BaseMaterial = Enum.Material.Concrete,
+        Texture = 'rbxassetid://15622710576',
+    },
+    CorrodedMetal = {
+        BaseMaterial = Enum.Material.CorrodedMetal,
+        Texture = 'rbxassetid://78612695839404',
+    },
+    Grass = {
+        BaseMaterial = Enum.Material.Grass,
+        Texture = 'rbxassetid://9267183930',
+    },
+    Metal = {
+        BaseMaterial = Enum.Material.Metal,
+        Texture = 'rbxassetid://121650613091353',
+    },
+    Sand = {
+        BaseMaterial = Enum.Material.Sand,
+        Texture = 'rbxassetid://12624140843',
+    },
+    Slate = {
+        BaseMaterial = Enum.Material.Slate,
+        Texture = 'rbxassetid://8676746437',
+    },
+    Wood = {
+        BaseMaterial = Enum.Material.Wood,
+        Texture = 'rbxassetid://3258599312',
+    },
+    WoodPlanks = {
+        BaseMaterial = Enum.Material.WoodPlanks,
+        Texture = 'rbxassetid://8676581022',
+    },
+}
+local MATERIAL_VARIANT_BY_MATERIAL = {
+    [Enum.Material.Brick] = 'Brick',
+    [Enum.Material.Concrete] = 'Concrete',
+    [Enum.Material.CorrodedMetal] = 'CorrodedMetal',
+    [Enum.Material.Grass] = 'Grass',
+    [Enum.Material.Metal] = 'Metal',
+    [Enum.Material.Sand] = 'Sand',
+    [Enum.Material.Slate] = 'Slate',
+    [Enum.Material.Wood] = 'Wood',
+    [Enum.Material.WoodPlanks] = 'WoodPlanks',
+}
+local MINECRAFT_TERRAIN_COLORS = {
+    [Enum.Material.Grass] = Color3.fromRGB(106, 170, 64),
+    [Enum.Material.Ground] = Color3.fromRGB(134, 96, 67),
+    [Enum.Material.Mud] = Color3.fromRGB(102, 76, 51),
+    [Enum.Material.Sand] = Color3.fromRGB(219, 211, 160),
+    [Enum.Material.Rock] = Color3.fromRGB(122, 122, 122),
+    [Enum.Material.Slate] = Color3.fromRGB(90, 90, 90),
+    [Enum.Material.Snow] = Color3.fromRGB(245, 245, 245),
+    [Enum.Material.Water] = Color3.fromRGB(63, 118, 228),
+}
+local LarpticTextureState = setmetatable({}, {
+    __mode = 'k',
+})
+local LarpticMaterialVariantsBuilt = false
+local SkyboxAssets = {
+    ['Black Storm'] = {
+        Bk = 'rbxassetid://15502511288',
+        Dn = 'rbxassetid://15502508460',
+        Ft = 'rbxassetid://15502510289',
+        Lf = 'rbxassetid://15502507918',
+        Rt = 'rbxassetid://15502509398',
+        Up = 'rbxassetid://15502511911',
+    },
+    HD = {
+        Bk = 'http://www.roblox.com/asset/?id=16553658937',
+        Dn = 'http://www.roblox.com/asset/?id=16553660713',
+        Ft = 'http://www.roblox.com/asset/?id=16553662144',
+        Lf = 'http://www.roblox.com/asset/?id=16553664042',
+        Rt = 'http://www.roblox.com/asset/?id=16553665766',
+        Up = 'http://www.roblox.com/asset/?id=16553667750',
+    },
+    Snow = {
+        Bk = 'http://www.roblox.com/asset/?id=155657655',
+        Dn = 'http://www.roblox.com/asset/?id=155674246',
+        Ft = 'http://www.roblox.com/asset/?id=155657609',
+        Lf = 'http://www.roblox.com/asset/?id=155657671',
+        Rt = 'http://www.roblox.com/asset/?id=155657619',
+        Up = 'http://www.roblox.com/asset/?id=155674931',
+    },
+    ['Blue Space'] = {
+        Bk = 'rbxassetid://15536110634',
+        Dn = 'rbxassetid://15536112543',
+        Ft = 'rbxassetid://15536116141',
+        Lf = 'rbxassetid://15536114370',
+        Rt = 'rbxassetid://15536118762',
+        Up = 'rbxassetid://15536117282',
+    },
+    Realistic = {
+        Bk = 'rbxassetid://653719502',
+        Dn = 'rbxassetid://653718790',
+        Ft = 'rbxassetid://653719067',
+        Lf = 'rbxassetid://653719190',
+        Rt = 'rbxassetid://653718931',
+        Up = 'rbxassetid://653719321',
+    },
+    Stormy = {
+        Bk = 'http://www.roblox.com/asset/?id=18703245834',
+        Dn = 'http://www.roblox.com/asset/?id=18703243349',
+        Ft = 'http://www.roblox.com/asset/?id=18703240532',
+        Lf = 'http://www.roblox.com/asset/?id=18703237556',
+        Rt = 'http://www.roblox.com/asset/?id=18703235430',
+        Up = 'http://www.roblox.com/asset/?id=18703232671',
+    },
+    Pink = {
+        Bk = 'rbxassetid://12216109205',
+        Dn = 'rbxassetid://12216109875',
+        Ft = 'rbxassetid://12216109489',
+        Lf = 'rbxassetid://12216110170',
+        Rt = 'rbxassetid://12216110471',
+        Up = 'rbxassetid://12216108877',
+    },
+    Sunset = {
+        Bk = 'rbxassetid://600830446',
+        Dn = 'rbxassetid://600831635',
+        Ft = 'rbxassetid://600832720',
+        Lf = 'rbxassetid://600886090',
+        Rt = 'rbxassetid://600833862',
+        Up = 'rbxassetid://600835177',
+    },
+    Arctic = {
+        Bk = 'http://www.roblox.com/asset/?id=225469390',
+        Dn = 'http://www.roblox.com/asset/?id=225469395',
+        Ft = 'http://www.roblox.com/asset/?id=225469403',
+        Lf = 'http://www.roblox.com/asset/?id=225469450',
+        Rt = 'http://www.roblox.com/asset/?id=225469471',
+        Up = 'http://www.roblox.com/asset/?id=225469481',
+    },
+    Space = {
+        Bk = 'http://www.roblox.com/asset/?id=166509999',
+        Dn = 'http://www.roblox.com/asset/?id=166510057',
+        Ft = 'http://www.roblox.com/asset/?id=166510116',
+        Lf = 'http://www.roblox.com/asset/?id=166510092',
+        Rt = 'http://www.roblox.com/asset/?id=166510131',
+        Up = 'http://www.roblox.com/asset/?id=166510114',
+    },
+    ['Roblox Default'] = {
+        Bk = 'rbxasset://textures/sky/sky512_bk.tex',
+        Dn = 'rbxasset://textures/sky/sky512_dn.tex',
+        Ft = 'rbxasset://textures/sky/sky512_ft.tex',
+        Lf = 'rbxasset://textures/sky/sky512_lf.tex',
+        Rt = 'rbxasset://textures/sky/sky512_rt.tex',
+        Up = 'rbxasset://textures/sky/sky512_up.tex',
+    },
+    ['Red Night'] = {
+        Bk = 'http://www.roblox.com/asset/?id=401664839',
+        Dn = 'http://www.roblox.com/asset/?id=401664862',
+        Ft = 'http://www.roblox.com/asset/?id=401664960',
+        Lf = 'http://www.roblox.com/asset/?id=401664881',
+        Rt = 'http://www.roblox.com/asset/?id=401664901',
+        Up = 'http://www.roblox.com/asset/?id=401664936',
+    },
+    Minecraft = {
+        Bk = 'rbxassetid://8735166756',
+        Dn = 'http://www.roblox.com/asset/?id=8735166707',
+        Ft = 'http://www.roblox.com/asset/?id=8735231668',
+        Lf = 'http://www.roblox.com/asset/?id=8735166755',
+        Rt = 'http://www.roblox.com/asset/?id=8735166751',
+        Up = 'http://www.roblox.com/asset/?id=8735166729',
+    },
+    Galaxy = {
+        Bk = 'rbxassetid://15983968922',
+        Dn = 'rbxassetid://15983966825',
+        Ft = 'rbxassetid://15983965025',
+        Lf = 'rbxassetid://15983967420',
+        Rt = 'rbxassetid://15983966246',
+        Up = 'rbxassetid://15983964246',
+    },
+}
+local HatVariables = {
+    enabled = false,
+    style = 'Classic',
+    transparency = 0.3,
+    rainbow = false,
+    rainbowSpeed = 5,
+    color = Color3.fromRGB(0, 255, 255),
+    radius = 2.4,
+    height = 1.6,
+    reflectance = 0,
+    sides = 25,
+    parts = {},
+    connection = nil,
+}
+local tau = math.pi * 2
+local drawings = {}
+
+for i = 1, HatVariables.sides do
+    drawings[i] = {
+        Drawing.new('Line'),
+        Drawing.new('Triangle'),
+    }
+    drawings[i][1].ZIndex = 2
+    drawings[i][1].Thickness = 2
+    drawings[i][2].ZIndex = 1
+    drawings[i][2].Filled = true
+end
+
+local TrailVariables = {
+    enabled = false,
+    isGradient = false,
+    lifetime = 0.5,
+    transparencyStart = 0,
+    rainbow = false,
+    colorStatic = Color3.fromRGB(0, 255, 255),
+    gradient1 = Color3.fromRGB(0, 86, 255),
+    gradient2 = Color3.fromRGB(255, 0, 0),
+    parts = {},
+    connection = nil,
+}
+local AuraTrailerVariables = {
+    enabled = false,
+    color = Color3.fromRGB(255, 0, 0),
+    lifetime = 0.5,
+}
+local ForceFieldVariables = {
+    enabled = false,
+    color = Color3.fromRGB(128, 128, 128),
+    rainbow = false,
+    originalColors = {},
+    connection = nil,
+}
+local WorldVariables = {
+    screenEnabled = false,
+    screenIntensity = 0,
+    screenConnection = nil,
+    timeEnabled = false,
+    timeValue = 12,
+    fullBrightEnabled = false,
+}
+local NebulaVariables = {
+    enabled = false,
+    themeColor = Color3.fromRGB(173, 216, 230),
+}
+local SkyboxVariables = {
+    current = 'HD',
+    customEnabled = false,
+}
+local AnimeVariables = {
+    enabled = false,
+    gui = nil,
+}
+local FPSVariables = {
+    fpsPing1Enabled = false,
+    fpsPing2Enabled = false,
+}
+local LarpticAtmosphere = nil
+local ClassicAuraEnabled = false
+local ClassicAuraSelected = {}
+local ParticleAuraEnabled = false
+local ParticleAuraSelected = {}
+local ParticleAuraColor = Color3.fromRGB(133, 220, 255)
+local TexturePackEnabled = false
+local Features = {
+    Connections = {},
+    Highlights = {},
+    OldPos = nil,
+    FPDH = workspace.FallenPartsDestroyHeight,
+    ShootButton = nil,
+    ShootGui = nil,
+    AutoFarmActive = false,
+    BombJumpOnCooldown = false,
+}
+
+local function addConn(conn)
+    table.insert(Features.Connections, conn)
+
+    return conn
+end
+
 local Util = {}
 
 function Util:Tween(obj, props, duration, style, direction)
@@ -269,8 +645,6 @@ function Util:Round(num, decimals)
     return math.floor(num * mult + 0.5) / mult
 end
 
-print('\u{1f527} [CANDY ZONE] Utilities loaded')
-
 local FPS = {
     frames = 0,
     lastUpdate = tick(),
@@ -319,7 +693,6 @@ end
 RunService.RenderStepped:Connect(function()
     FPS:Update()
 end)
-print('\u{1f4ca} [CANDY ZONE] FPS Counter initialized')
 
 local Snow = {
     particles = {},
@@ -368,7 +741,6 @@ function Snow:Create(parent)
     self.active = true
 
     self:Animate()
-    print('\u{2744}\u{fe0f} [CANDY ZONE] Snow system created')
 end
 function Snow:Animate()
     local time = 0
@@ -418,18 +790,6 @@ function Snow:Destroy()
     self.particles = {}
 end
 
-local Features = {
-    Connections = {},
-    Highlights = {},
-    OldPos = nil,
-    FPDH = workspace.FallenPartsDestroyHeight,
-}
-
-local function addConn(conn)
-    table.insert(Features.Connections, conn)
-
-    return conn
-end
 local function applyHighlight(player, color)
     local character = player.Character
 
@@ -482,8 +842,6 @@ local function updateESP()
             elseif Config.Settings.ESP.Innocent and not hasKnife and not hasGun then
                 color = Config.Settings.Colors.InnocentESP
             end
-            if hasGun and Config.Settings.ESP.Hero and not hasKnife then
-            end
             if color then
                 applyHighlight(player, color)
             else
@@ -492,6 +850,14 @@ local function updateESP()
         end
     end
 end
+
+task.spawn(function()
+    while true do
+        pcall(updateESP)
+        task.wait(0.15)
+    end
+end)
+
 local function setNoclip(state)
     Config.Settings.Rage.Noclip = state
 end
@@ -652,13 +1018,8 @@ local function flingPlayer(targetPlayer)
             Features.OldPos = RootPart.CFrame
         end
         if THumanoid and THumanoid.Sit then
-            print('[FLING] Target is sitting')
-
             return
         end
-
-        print('[FLING] Flinging: ' .. targetPlayer.DisplayName)
-
         if THead then
             workspace.CurrentCamera.CameraSubject = THead
         elseif Handle then
@@ -763,14 +1124,1036 @@ local function flingPlayer(targetPlayer)
         end
     end
 end
+local function getMurderer()
+    for _, p in ipairs(Players:GetPlayers())do
+        if p.Character then
+            local bp = p:FindFirstChild('Backpack')
+
+            if (bp and bp:FindFirstChild('Knife')) or p.Character:FindFirstChild('Knife') then
+                return p
+            end
+        end
+    end
+
+    return nil
+end
+local function getSheriff()
+    for _, p in ipairs(Players:GetPlayers())do
+        if p.Character then
+            local bp = p:FindFirstChild('Backpack')
+            local hasGun = (bp and (bp:FindFirstChild('Gun') or bp:FindFirstChild('Revolver'))) or p.Character:FindFirstChild('Gun') or p.Character:FindFirstChild('Revolver')
+
+            if hasGun then
+                return p
+            end
+        end
+    end
+
+    return nil
+end
+local function fireGun(gun, targetPosition)
+    local char = LocalPlayer.Character
+    local bp = LocalPlayer:FindFirstChild('Backpack')
+
+    if gun.Parent == bp then
+        char.Humanoid:EquipTool(gun)
+        task.wait(0.05)
+    end
+
+    local originCF
+    local gunServer = gun:FindFirstChild('GunServer')
+
+    if gunServer then
+        local attachment = gunServer:FindFirstChild('GunRaycastAttachment1') or gunServer:FindFirstChild('RaycastAttachment')
+
+        if attachment then
+            originCF = attachment.WorldCFrame
+        end
+    end
+    if not originCF then
+        local handle = gun:FindFirstChild('Handle') or gun:FindFirstChild('Gun')
+
+        if handle and handle:IsA('BasePart') then
+            originCF = handle.CFrame
+        end
+    end
+    if not originCF then
+        local hrp = char:FindFirstChild('HumanoidRootPart')
+
+        if hrp then
+            originCF = hrp.CFrame
+        end
+    end
+    if not originCF then
+        return
+    end
+
+    local shootRemote = gun:FindFirstChild('Shoot') or gun:FindFirstChild('Fire')
+
+    if shootRemote then
+        local args = {
+            CFrame.new(originCF.Position, targetPosition),
+            CFrame.new(targetPosition),
+        }
+
+        shootRemote:FireServer(unpack(args))
+    else
+        pcall(function()
+            if ReplicatedStorage:FindFirstChild('ShootGun') then
+                ReplicatedStorage.ShootGun:InvokeServer(1, targetPosition, targetPosition)
+            else
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                task.wait(0.05)
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+            end
+        end)
+    end
+end
+local function shootMurdererDirect()
+    local char = LocalPlayer.Character
+
+    if not char then
+        return
+    end
+
+    local gun = char:FindFirstChild('Gun') or char:FindFirstChild('Revolver')
+
+    if not gun then
+        local bp = LocalPlayer:FindFirstChild('Backpack')
+
+        gun = bp and (bp:FindFirstChild('Gun') or bp:FindFirstChild('Revolver'))
+    end
+    if not gun then
+        return
+    end
+
+    local m = getMurderer()
+
+    if m and m.Character and m.Character:FindFirstChild('HumanoidRootPart') then
+        fireGun(gun, m.Character.HumanoidRootPart.Position)
+    end
+end
+local function createDraggableShootButton()
+    if Features.ShootGui then
+        Features.ShootGui:Destroy()
+    end
+
+    local sg = Instance.new('ScreenGui')
+
+    sg.Name = 'CandyZone_ShootBtn'
+    sg.ResetOnSpawn = false
+    sg.IgnoreGuiInset = true
+    sg.DisplayOrder = 999999
+
+    if gethui then
+        sg.Parent = gethui()
+    else
+        sg.Parent = CoreGui
+    end
+
+    Features.ShootGui = sg
+
+    local btn = Instance.new('TextButton')
+
+    btn.Name = 'ShootButton'
+    btn.Size = UDim2.new(0, 80, 0, 80)
+    btn.Position = UDim2.new(0.85, 0, 0.6, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    btn.BorderSizePixel = 0
+    btn.Text = '\u{1f52b}\nSHOOT'
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 14
+    btn.Font = Enum.Font.GothamBold
+    btn.AutoButtonColor = false
+    btn.Parent = sg
+
+    Util:Corner(btn, 12)
+    Util:Stroke(btn, 2, Color3.fromRGB(0, 150, 255), 0.3)
+
+    local dragging, dragStart, startPos = false, nil, nil
+
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = btn.Position
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+
+            btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+    btn.MouseButton1Click:Connect(function()
+        local ripple = Instance.new('Frame')
+
+        ripple.AnchorPoint = Vector2.new(0.5, 0.5)
+        ripple.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+        ripple.BackgroundTransparency = 0.4
+        ripple.Size = UDim2.new(0, 0, 0, 0)
+        ripple.Position = UDim2.new(0.5, 0, 0.5, 0)
+        ripple.ZIndex = btn.ZIndex + 1
+        ripple.BorderSizePixel = 0
+        ripple.Parent = btn
+
+        Util:Corner(ripple, 999)
+        Util:Tween(ripple, {
+            Size = UDim2.new(0, 120, 0, 120),
+            BackgroundTransparency = 1,
+        }, 0.4)
+        task.delay(0.4, function()
+            ripple:Destroy()
+        end)
+        shootMurdererDirect()
+    end)
+
+    Features.ShootButton = btn
+end
+local function removeDraggableShootButton()
+    if Features.ShootGui then
+        Features.ShootGui:Destroy()
+
+        Features.ShootGui = nil
+        Features.ShootButton = nil
+    end
+end
+local function getCoinsOnMap()
+    local coins = {}
+
+    for _, v in ipairs(workspace:GetDescendants())do
+        if v:IsA('BasePart') and (v.Name == 'Coin_Highlight' or v.Name == 'CoinContainer' or v.Name == 'Coin') then
+            table.insert(coins, v)
+        end
+    end
+
+    return coins
+end
 
 task.spawn(function()
     while true do
-        pcall(updateESP)
+        pcall(function()
+            if Config.Settings.Combat.AutoFarm then
+                local char = LocalPlayer.Character
+                local hrp = char and char:FindFirstChild('HumanoidRootPart')
+
+                if hrp then
+                    local coins = getCoinsOnMap()
+                    local nearestCoin, minDist = nil, math.huge
+
+                    for _, coin in ipairs(coins)do
+                        local dist = (coin.Position - hrp.Position).Magnitude
+
+                        if dist < minDist then
+                            minDist = dist
+                            nearestCoin = coin
+                        end
+                    end
+
+                    if nearestCoin then
+                        local stepConn
+
+                        stepConn = RunService.Heartbeat:Connect(function(dt)
+                            if not Config.Settings.Combat.AutoFarm or not nearestCoin or not nearestCoin.Parent or not hrp.Parent then
+                                if stepConn then
+                                    stepConn:Disconnect()
+                                end
+
+                                return
+                            end
+
+                            local dir = (nearestCoin.Position - hrp.Position).Unit
+
+                            hrp.CFrame = hrp.CFrame + (dir * (22 * dt))
+
+                            if (nearestCoin.Position - hrp.Position).Magnitude < 4 then
+                                if stepConn then
+                                    stepConn:Disconnect()
+                                end
+                            end
+                        end)
+
+                        local timeout = 0
+
+                        while nearestCoin and nearestCoin.Parent and Config.Settings.Combat.AutoFarm and timeout < 100 do
+                            if (nearestCoin.Position - hrp.Position).Magnitude < 4 then
+                                break
+                            end
+
+                            task.wait(0.05)
+
+                            timeout = timeout + 1
+                        end
+
+                        if stepConn then
+                            stepConn:Disconnect()
+                        end
+                    end
+                end
+            end
+        end)
         task.wait(0.15)
     end
 end)
-print('\u{26a1} [CANDY ZONE] Features loaded')
+
+local function executeBombJump()
+    if Features.BombJumpOnCooldown then
+        return
+    end
+
+    local char = LocalPlayer.Character
+
+    if not char then
+        return
+    end
+
+    local hrp = char:FindFirstChild('HumanoidRootPart')
+    local hum = char:FindFirstChildOfClass('Humanoid')
+
+    if not hrp or not hum then
+        return
+    end
+
+    local hasBomb = char:FindFirstChild('FakeBomb') or (LocalPlayer:FindFirstChild('Backpack') and LocalPlayer.Backpack:FindFirstChild('FakeBomb'))
+
+    if not hasBomb then
+        pcall(function()
+            local remotes = ReplicatedStorage:FindFirstChild('Remotes', true)
+
+            if remotes then
+                local extras = remotes:FindFirstChild('Extras', true)
+
+                if extras then
+                    local replicate = extras:FindFirstChild('ReplicateToy')
+
+                    if replicate then
+                        replicate:InvokeServer('FakeBomb')
+                    end
+                end
+            end
+        end)
+        task.wait(0.3)
+    end
+
+    Features.BombJumpOnCooldown = true
+
+    hum:ChangeState(Enum.HumanoidStateType.Jumping)
+
+    hrp.Velocity = Vector3.new(hrp.Velocity.X, 120, hrp.Velocity.Z)
+
+    local bomb = char:FindFirstChild('FakeBomb')
+
+    if bomb and bomb:IsA('Tool') then
+        pcall(function()
+            bomb:Activate()
+        end)
+    end
+
+    task.delay(1.2, function()
+        Features.BombJumpOnCooldown = false
+    end)
+end
+local function killAll()
+    local char = LocalPlayer.Character
+
+    if not char then
+        return
+    end
+
+    local knife = char:FindFirstChild('Knife') or (LocalPlayer:FindFirstChild('Backpack') and LocalPlayer.Backpack:FindFirstChild('Knife'))
+
+    if not knife then
+        return
+    end
+    if knife.Parent == LocalPlayer.Backpack then
+        char.Humanoid:EquipTool(knife)
+        task.wait(0.05)
+    end
+
+    for _, victim in ipairs(Players:GetPlayers())do
+        if victim ~= LocalPlayer and victim.Character and victim.Character:FindFirstChild('HumanoidRootPart') then
+            local vHum = victim.Character:FindFirstChildOfClass('Humanoid')
+
+            if vHum and vHum.Health > 0 then
+                local dist = (char.HumanoidRootPart.Position - victim.Character.HumanoidRootPart.Position).Magnitude
+
+                if dist <= 30 then
+                    pcall(function()
+                        knife:Activate()
+
+                        local targetPart = victim.Character:FindFirstChild('HumanoidRootPart') or victim.Character:FindFirstChild('Torso') or victim.Character:FindFirstChild('UpperTorso')
+
+                        if targetPart and firetouchinterest then
+                            firetouchinterest(targetPart, knife.Handle, 0)
+                            firetouchinterest(targetPart, knife.Handle, 1)
+                        end
+                    end)
+                end
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while true do
+        if Config.Settings.Combat.AutoKillAll then
+            pcall(killAll)
+        end
+
+        task.wait(0.15)
+    end
+end)
+
+local function Hat_RemoveClassic()
+    if HatVariables.parts[LocalPlayer.Character] then
+        HatVariables.parts[LocalPlayer.Character]:Destroy()
+
+        HatVariables.parts[LocalPlayer.Character] = nil
+    end
+end
+local function Hat_AddClassic(char)
+    task.wait(0.1)
+
+    local head = char:WaitForChild('Head', 5)
+
+    if not head then
+        return
+    end
+
+    Hat_RemoveClassic()
+
+    local hat = Instance.new('Part')
+
+    hat.Name = 'ChineseHat'
+    hat.Transparency = HatVariables.transparency
+    hat.Color = HatVariables.color
+    hat.Material = Enum.Material.Neon
+    hat.CanCollide = false
+    hat.Reflectance = HatVariables.reflectance
+
+    local mesh = Instance.new('SpecialMesh')
+
+    mesh.MeshId = 'rbxassetid://1033714'
+    mesh.Scale = Vector3.new(HatVariables.radius, HatVariables.height, HatVariables.radius)
+    mesh.Parent = hat
+
+    local weld = Instance.new('WeldConstraint')
+
+    weld.Part0 = head
+    weld.Part1 = hat
+    weld.Parent = hat
+    hat.CFrame = head.CFrame * CFrame.new(0, 1.1, 0)
+    hat.Parent = char
+    HatVariables.parts[char] = hat
+end
+local function Hat_UpdateClassic()
+    for char, hat in pairs(HatVariables.parts)do
+        if hat and hat.Parent and char == LocalPlayer.Character then
+            hat.Transparency = HatVariables.transparency
+            hat.Reflectance = HatVariables.reflectance
+
+            if HatVariables.rainbow then
+                hat.Color = Color3.fromHSV(tick() % HatVariables.rainbowSpeed / HatVariables.rainbowSpeed, 1, 1)
+            else
+                hat.Color = HatVariables.color
+            end
+
+            local mesh = hat:FindFirstChildOfClass('SpecialMesh')
+
+            if mesh then
+                mesh.Scale = Vector3.new(HatVariables.radius, HatVariables.height, HatVariables.radius)
+            end
+        end
+    end
+end
+local function Hat_UpdateDrawing()
+    local pass = HatVariables.enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('Head') and (camera.CFrame.p - camera.Focus.p).magnitude > 1 and LocalPlayer.Character.Humanoid.Health > 0
+
+    for i = 1, #drawings do
+        local line, triangle = drawings[i][1], drawings[i][2]
+
+        if pass and HatVariables.style == 'Drawing' then
+            local color
+
+            if HatVariables.rainbow then
+                color = Color3.fromHSV((tick() % HatVariables.rainbowSpeed / HatVariables.rainbowSpeed - (i / #drawings)) % 1, 0.5, 1)
+            else
+                color = HatVariables.color
+            end
+
+            local pos = LocalPlayer.Character.Head.Position + Vector3.new(0, 0.75, 0)
+            local topWorld = pos + Vector3.new(0, 0.75, 0)
+            local last, next = (i / HatVariables.sides) * tau, ((i + 1) / HatVariables.sides) * tau
+            local lastWorld = pos + (Vector3.new(math.cos(last), 0, math.sin(last)) * HatVariables.radius)
+            local nextWorld = pos + (Vector3.new(math.cos(next), 0, math.sin(next)) * HatVariables.radius)
+            local lastScreen = camera:WorldToViewportPoint(lastWorld)
+            local nextScreen = camera:WorldToViewportPoint(nextWorld)
+            local topScreen = camera:WorldToViewportPoint(topWorld)
+
+            line.From = Vector2.new(lastScreen.X, lastScreen.Y)
+            line.To = Vector2.new(nextScreen.X, nextScreen.Y)
+            line.Color = color
+            line.Visible = true
+            triangle.PointA = Vector2.new(topScreen.X, topScreen.Y)
+            triangle.PointB = Vector2.new(lastScreen.X, lastScreen.Y)
+            triangle.PointC = Vector2.new(nextScreen.X, nextScreen.Y)
+            triangle.Color = color
+            triangle.Transparency = HatVariables.transparency
+            triangle.Visible = true
+        else
+            line.Visible = false
+            triangle.Visible = false
+        end
+    end
+end
+local function Hat_ToggleEnabled(value)
+    HatVariables.enabled = value
+
+    if value then
+        if HatVariables.style == 'Classic' and LocalPlayer.Character then
+            Hat_AddClassic(LocalPlayer.Character)
+        end
+        if not HatVariables.connection then
+            HatVariables.connection = RunService.RenderStepped:Connect(function()
+                if HatVariables.style == 'Classic' then
+                    Hat_UpdateClassic()
+                else
+                    Hat_UpdateDrawing()
+                end
+            end)
+        end
+    else
+        Hat_RemoveClassic()
+
+        for i = 1, #drawings do
+            drawings[i][1].Visible = false
+            drawings[i][2].Visible = false
+        end
+
+        if HatVariables.connection then
+            HatVariables.connection:Disconnect()
+
+            HatVariables.connection = nil
+        end
+    end
+end
+local function Hat_ChangeStyle(value)
+    HatVariables.style = value
+
+    if HatVariables.enabled then
+        Hat_RemoveClassic()
+
+        for i = 1, #drawings do
+            drawings[i][1].Visible = false
+            drawings[i][2].Visible = false
+        end
+
+        if value == 'Classic' and LocalPlayer.Character then
+            Hat_AddClassic(LocalPlayer.Character)
+        end
+    end
+end
+local function Hat_UpdateSides(value)
+    HatVariables.sides = value
+
+    for i = 1, #drawings do
+        drawings[i][1]:Remove()
+        drawings[i][2]:Remove()
+    end
+
+    drawings = {}
+
+    for i = 1, value do
+        drawings[i] = {
+            Drawing.new('Line'),
+            Drawing.new('Triangle'),
+        }
+        drawings[i][1].ZIndex = 2
+        drawings[i][1].Thickness = 2
+        drawings[i][2].ZIndex = 1
+        drawings[i][2].Filled = true
+    end
+end
+local function Trail_RemoveFromCharacter(char)
+    if TrailVariables.parts[char] then
+        for _, t in ipairs(TrailVariables.parts[char])do
+            if t then
+                t:Destroy()
+            end
+        end
+
+        TrailVariables.parts[char] = nil
+    end
+end
+local function Trail_AddToCharacter(char)
+    Trail_RemoveFromCharacter(char)
+
+    local hrp = char:FindFirstChild('HumanoidRootPart')
+
+    if not hrp then
+        return
+    end
+
+    local trails = {}
+
+    local function makeTrail(attach0, attach1)
+        local trail = Instance.new('Trail')
+
+        trail.Attachment0 = attach0
+        trail.Attachment1 = attach1
+        trail.Lifetime = TrailVariables.lifetime
+        trail.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, TrailVariables.transparencyStart),
+            NumberSequenceKeypoint.new(1, 1),
+        })
+        trail.FaceCamera = true
+        trail.Parent = hrp
+
+        return trail
+    end
+
+    local a0 = Instance.new('Attachment')
+
+    a0.Position = Vector3.new(0, 1, 0)
+    a0.Parent = hrp
+
+    local a1 = Instance.new('Attachment')
+
+    a1.Position = Vector3.new(0, -1, 0)
+    a1.Parent = hrp
+
+    local trail = makeTrail(a0, a1)
+
+    if TrailVariables.isGradient then
+        trail.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, TrailVariables.gradient1),
+            ColorSequenceKeypoint.new(1, TrailVariables.gradient2),
+        })
+    elseif TrailVariables.rainbow then
+    else
+        trail.Color = ColorSequence.new(TrailVariables.colorStatic)
+    end
+
+    table.insert(trails, trail)
+    table.insert(trails, a0)
+    table.insert(trails, a1)
+
+    TrailVariables.parts[char] = trails
+end
+local function Trail_UpdateAll()
+    for char, parts in pairs(TrailVariables.parts)do
+        for _, t in ipairs(parts)do
+            if t:IsA('Trail') then
+                t.Lifetime = TrailVariables.lifetime
+                t.Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0, TrailVariables.transparencyStart),
+                    NumberSequenceKeypoint.new(1, 1),
+                })
+
+                if TrailVariables.isGradient then
+                    t.Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, TrailVariables.gradient1),
+                        ColorSequenceKeypoint.new(1, TrailVariables.gradient2),
+                    })
+                elseif not TrailVariables.rainbow then
+                    t.Color = ColorSequence.new(TrailVariables.colorStatic)
+                end
+            end
+        end
+    end
+end
+local function Trail_ToggleEnabled(value)
+    TrailVariables.enabled = value
+
+    if value and LocalPlayer.Character then
+        Trail_AddToCharacter(LocalPlayer.Character)
+    else
+        if LocalPlayer.Character then
+            Trail_RemoveFromCharacter(LocalPlayer.Character)
+        end
+    end
+end
+local function ForceField_Apply(char)
+    for _, part in ipairs(char:GetDescendants())do
+        if part:IsA('BasePart') and part.Name ~= 'HumanoidRootPart' then
+            if not ForceFieldVariables.originalColors[part] then
+                ForceFieldVariables.originalColors[part] = part.Color
+            end
+
+            part.Material = Enum.Material.ForceField
+            part.Color = ForceFieldVariables.rainbow and Color3.fromHSV(tick() % 5 / 5, 1, 1) or ForceFieldVariables.color
+        end
+    end
+end
+local function ForceField_Remove(char)
+    for _, part in ipairs(char:GetDescendants())do
+        if part:IsA('BasePart') and ForceFieldVariables.originalColors[part] then
+            part.Material = Enum.Material.Plastic
+            part.Color = ForceFieldVariables.originalColors[part]
+        end
+    end
+end
+local function ForceField_Update()
+    if ForceFieldVariables.enabled and LocalPlayer.Character then
+        ForceField_Apply(LocalPlayer.Character)
+    end
+end
+local function ForceField_ToggleEnabled(value)
+    ForceFieldVariables.enabled = value
+
+    if value and LocalPlayer.Character then
+        ForceField_Apply(LocalPlayer.Character)
+
+        if not ForceFieldVariables.connection then
+            ForceFieldVariables.connection = RunService.Heartbeat:Connect(function()
+                if ForceFieldVariables.rainbow and ForceFieldVariables.enabled and LocalPlayer.Character then
+                    for _, part in ipairs(LocalPlayer.Character:GetDescendants())do
+                        if part:IsA('BasePart') and part.Material == Enum.Material.ForceField then
+                            part.Color = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+                        end
+                    end
+                end
+            end)
+        end
+    else
+        if LocalPlayer.Character then
+            ForceField_Remove(LocalPlayer.Character)
+        end
+        if ForceFieldVariables.connection then
+            ForceFieldVariables.connection:Disconnect()
+
+            ForceFieldVariables.connection = nil
+        end
+    end
+end
+local function AuraTrailer_Toggle(value)
+    AuraTrailerVariables.enabled = value
+
+    local char = LocalPlayer.Character
+
+    if not char then
+        return
+    end
+
+    local hrp = char:FindFirstChild('HumanoidRootPart')
+
+    if not hrp then
+        return
+    end
+
+    local existing = hrp:FindFirstChild('CandyAuraTrailer')
+
+    if existing then
+        existing:Destroy()
+    end
+    if value then
+        local att0 = Instance.new('Attachment')
+
+        att0.Name = 'CandyAuraTrailer'
+        att0.Parent = hrp
+
+        local att1 = Instance.new('Attachment')
+
+        att1.Position = Vector3.new(0, -2, 0)
+        att1.Parent = hrp
+
+        local trail = Instance.new('Trail')
+
+        trail.Attachment0 = att0
+        trail.Attachment1 = att1
+        trail.Color = ColorSequence.new(AuraTrailerVariables.color)
+        trail.Lifetime = AuraTrailerVariables.lifetime
+        trail.FaceCamera = true
+        trail.Parent = hrp
+    end
+end
+local function AuraTrailer_Update()
+    if AuraTrailerVariables.enabled then
+        AuraTrailer_Toggle(true)
+    end
+end
+local function ClassicAura_RefreshAll()
+    for _, model in pairs(activeClassicAuras)do
+        if model then
+            model:Destroy()
+        end
+    end
+
+    activeClassicAuras = {}
+
+    if not ClassicAuraEnabled or not LocalPlayer.Character then
+        return
+    end
+
+    local hrp = LocalPlayer.Character:FindFirstChild('HumanoidRootPart')
+
+    if not hrp then
+        return
+    end
+
+    for name, selected in pairs(ClassicAuraSelected)do
+        if selected and AuraModelIDs[name] then
+            local success, model = pcall(function()
+                return game:GetObjects(AuraModelIDs[name])[1]
+            end)
+
+            if success and model then
+                model.Parent = LocalPlayer.Character
+
+                for _, p in ipairs(model:GetDescendants())do
+                    if p:IsA('BasePart') then
+                        p.CanCollide = false
+                        p.Anchored = false
+
+                        local w = Instance.new('WeldConstraint')
+
+                        w.Part0 = hrp
+                        w.Part1 = p
+                        w.Parent = p
+                    end
+                end
+
+                table.insert(activeClassicAuras, model)
+            end
+        end
+    end
+end
+local function ParticleAura_RefreshAll()
+    for _, a in pairs(activeParticleAuras)do
+        if a then
+            a:Destroy()
+        end
+    end
+
+    activeParticleAuras = {}
+
+    if not ParticleAuraEnabled or not LocalPlayer.Character then
+        return
+    end
+
+    local hrp = LocalPlayer.Character:FindFirstChild('HumanoidRootPart')
+
+    if not hrp then
+        return
+    end
+
+    for name, selected in pairs(ParticleAuraSelected)do
+        if selected and particleAuraIdByName[name] then
+            local att = Instance.new('Attachment')
+
+            att.Parent = hrp
+
+            local pe = Instance.new('ParticleEmitter')
+
+            pe.Texture = particleAuraIdByName[name]
+            pe.Color = ColorSequence.new(ParticleAuraColor)
+            pe.Rate = 20
+            pe.Lifetime = NumberRange.new(1, 2)
+            pe.Speed = NumberRange.new(1, 3)
+            pe.Size = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0.5),
+                NumberSequenceKeypoint.new(1, 0),
+            })
+            pe.Parent = att
+
+            table.insert(activeParticleAuras, att)
+        end
+    end
+end
+local function Skybox_Apply(name)
+    local data = SkyboxAssets[name]
+
+    if not data then
+        return
+    end
+
+    local sky = Lighting:FindFirstChildOfClass('Sky')
+
+    if not sky then
+        sky = Instance.new('Sky')
+        sky.Parent = Lighting
+    end
+
+    sky.SkyboxBk = data.Bk
+    sky.SkyboxDn = data.Dn
+    sky.SkyboxFt = data.Ft
+    sky.SkyboxLf = data.Lf
+    sky.SkyboxRt = data.Rt
+    sky.SkyboxUp = data.Up
+end
+local function Skybox_RestoreDefault()
+    local sky = Lighting:FindFirstChildOfClass('Sky')
+
+    if sky and DefaultSkySettings.SkyboxBk then
+        sky.SkyboxBk = DefaultSkySettings.SkyboxBk
+        sky.SkyboxDn = DefaultSkySettings.SkyboxDn
+        sky.SkyboxFt = DefaultSkySettings.SkyboxFt
+        sky.SkyboxLf = DefaultSkySettings.SkyboxLf
+        sky.SkyboxRt = DefaultSkySettings.SkyboxRt
+        sky.SkyboxUp = DefaultSkySettings.SkyboxUp
+    end
+end
+local function Nebula_Enable()
+    local bloom = Instance.new('BloomEffect')
+
+    bloom.Name = 'NebulaBloom'
+    bloom.Intensity = 1.2
+    bloom.Size = 24
+    bloom.Threshold = 0.8
+    bloom.Parent = Lighting
+
+    local cc = Instance.new('ColorCorrectionEffect')
+
+    cc.Name = 'NebulaColorCorrection'
+    cc.TintColor = NebulaVariables.themeColor
+    cc.Parent = Lighting
+
+    local a = Instance.new('Atmosphere')
+
+    a.Name = 'NebulaAtmosphere'
+    a.Color = NebulaVariables.themeColor
+    a.Decay = Color3.fromRGB(173, 216, 230)
+    a.Parent = Lighting
+    Lighting.Ambient = NebulaVariables.themeColor
+    Lighting.OutdoorAmbient = NebulaVariables.themeColor
+    Lighting.FogStart = 100
+    Lighting.FogEnd = 500
+    Lighting.FogColor = NebulaVariables.themeColor
+end
+local function Nebula_Disable()
+    for _, name in pairs({
+        'NebulaBloom',
+        'NebulaColorCorrection',
+        'NebulaAtmosphere',
+    })do
+        local obj = Lighting:FindFirstChild(name)
+
+        if obj then
+            obj:Destroy()
+        end
+    end
+
+    Lighting.Ambient = defaultLighting.Ambient
+    Lighting.OutdoorAmbient = defaultLighting.OutdoorAmbient
+    Lighting.FogStart = defaultLighting.FogStart
+    Lighting.FogEnd = defaultLighting.FogEnd
+    Lighting.FogColor = defaultLighting.FogColor
+end
+local function Nebula_UpdateColor()
+    if NebulaVariables.enabled then
+        local nc = Lighting:FindFirstChild('NebulaColorCorrection')
+
+        if nc then
+            nc.TintColor = NebulaVariables.themeColor
+        end
+
+        local na = Lighting:FindFirstChild('NebulaAtmosphere')
+
+        if na then
+            na.Color = NebulaVariables.themeColor
+        end
+
+        Lighting.Ambient = NebulaVariables.themeColor
+        Lighting.OutdoorAmbient = NebulaVariables.themeColor
+        Lighting.FogColor = NebulaVariables.themeColor
+    end
+end
+local function Screen_Toggle(value)
+    WorldVariables.screenEnabled = value
+
+    if value then
+        WorldVariables.screenConnection = RunService.RenderStepped:Connect(function()
+            camera.CFrame = camera.CFrame * CFrame.new(0, 0, 0, 1, 0, 0, 0, (0.65 + WorldVariables.screenIntensity), 0, 0, 0, 1)
+        end)
+    else
+        if WorldVariables.screenConnection then
+            WorldVariables.screenConnection:Disconnect()
+
+            WorldVariables.screenConnection = nil
+        end
+    end
+end
+local function applyAtmosphere()
+    if LarpticAtmosphere then
+        LarpticAtmosphere:Destroy()
+    end
+
+    LarpticAtmosphere = Instance.new('Atmosphere')
+    LarpticAtmosphere.Parent = Lighting
+end
+local function applyTexturePack()
+    TexturePackEnabled = true
+end
+local function clearTexturePack()
+    TexturePackEnabled = false
+end
+local function Anime_Toggle(value)
+    AnimeVariables.enabled = value
+
+    if value then
+        AnimeVariables.gui = Instance.new('ScreenGui')
+        AnimeVariables.gui.Name = 'AnimeImageGui'
+        AnimeVariables.gui.ResetOnSpawn = false
+        AnimeVariables.gui.Parent = LocalPlayer:WaitForChild('PlayerGui')
+
+        local imageLabel = Instance.new('ImageLabel')
+
+        imageLabel.Name = 'AnimeImage'
+        imageLabel.Image = 'http://www.roblox.com/asset/?id=117783035423570'
+        imageLabel.Size = UDim2.new(0, 350, 0, 400)
+        imageLabel.Position = UDim2.new(1, -25, 0, 10)
+        imageLabel.AnchorPoint = Vector2.new(1, 0)
+        imageLabel.BackgroundTransparency = 1
+        imageLabel.Parent = AnimeVariables.gui
+    else
+        if AnimeVariables.gui then
+            AnimeVariables.gui:Destroy()
+
+            AnimeVariables.gui = nil
+        end
+    end
+end
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    task.wait(1)
+
+    if HatVariables.enabled and HatVariables.style == 'Classic' then
+        Hat_AddClassic(char)
+    end
+    if TrailVariables.enabled then
+        Trail_AddToCharacter(char)
+    end
+    if ForceFieldVariables.enabled then
+        ForceField_Apply(char)
+    end
+    if AuraTrailerVariables.enabled then
+        AuraTrailer_Toggle(true)
+    end
+    if AnimeVariables.enabled then
+        Anime_Toggle(true)
+    end
+
+    ClassicAura_RefreshAll()
+    ParticleAura_RefreshAll()
+end)
+RunService.Heartbeat:Connect(function()
+    if WorldVariables.timeEnabled then
+        Lighting.ClockTime = WorldVariables.timeValue
+    end
+    if WorldVariables.fullBrightEnabled then
+        Lighting.Brightness = 3
+        Lighting.GlobalShadows = false
+        Lighting.OutdoorAmbient = Color3.new(1, 1, 1)
+        Lighting.ExposureCompensation = 0.3
+    end
+end)
+print('\u{26a1} [CANDY ZONE] All features loaded')
 
 local GUI = {
     ScreenGui = nil,
@@ -786,8 +2169,6 @@ local GUI = {
 }
 
 function GUI:Initialize()
-    print('\u{1f528} [CANDY ZONE] Creating GUI...')
-
     self.ScreenGui = Instance.new('ScreenGui')
     self.ScreenGui.Name = 'CandyZoneMM2_' .. HttpService:GenerateGUID(false):sub(1, 8)
     self.ScreenGui.ResetOnSpawn = false
@@ -807,7 +2188,6 @@ function GUI:Initialize()
 
     self:CreateTopBar()
     self:CreateMainWindow()
-    print('\u{2705} [CANDY ZONE] GUI created successfully!')
 end
 function GUI:CreateTopBar()
     local container = Instance.new('Frame')
@@ -822,7 +2202,6 @@ function GUI:CreateTopBar()
     local candyBtn = self:CreateTopBarBlock('Candy Zone', 110, 0, true)
 
     candyBtn.MouseButton1Click:Connect(function()
-        print('\u{1f36c} [TOP BAR] Candy Zone clicked!')
         self:ToggleMain()
     end)
 
@@ -847,9 +2226,7 @@ function GUI:CreateTopBar()
     task.spawn(function()
         while task.wait(0.5) do
             if self.TopBar.FPS and self.TopBar.FPS.Parent then
-                local fps = FPS.current
-
-                self.TopBar.FPS.Text = 'FPS: ' .. fps
+                self.TopBar.FPS.Text = 'FPS: ' .. FPS.current
 
                 Util:Tween(self.TopBar.FPS, {
                     TextColor3 = FPS:GetColor(),
@@ -859,7 +2236,6 @@ function GUI:CreateTopBar()
             end
         end
     end)
-    print('\u{1f4ca} [CANDY ZONE] Top Bar created')
 end
 function GUI:CreateTopBarBlock(text, width, xPos, isButton)
     local block = Instance.new(isButton and 'TextButton' or 'TextLabel')
@@ -939,7 +2315,6 @@ function GUI:CreateMainWindow()
     self:CreateNavigation()
     self:CreateContentArea()
     self:LoadTab('Visuals')
-    print('\u{1fa9f} [CANDY ZONE] Main Window created')
 end
 function GUI:CreateAccentBar()
     local bar = Instance.new('Frame')
@@ -1094,8 +2469,6 @@ function GUI:CreateNavigation()
         self.Main.Nav[tab.name] = btn
         yPos = yPos + Config.Size.Nav.ButtonHeight + Config.Size.Nav.Spacing
     end
-
-    print('\u{1f9ed} [CANDY ZONE] Navigation created')
 end
 function GUI:CreateNavButton(name, icon, yPos, isActive)
     local btn = Instance.new('TextButton')
@@ -1230,14 +2603,11 @@ function GUI:CreateContentArea()
             self.Main.Content.CanvasSize = UDim2.new(0, 0, 0, contentHeight)
         end
     end)
-    print('\u{1f4c4} [CANDY ZONE] Content Area created')
 end
 function GUI:SwitchTab(tabName)
     if self.Main.CurrentTab == tabName then
         return
     end
-
-    print('\u{1f504} [CANDY ZONE] Switching to tab: ' .. tabName)
 
     for name, btn in pairs(self.Main.Nav)do
         local indicator = btn:FindFirstChild('Indicator')
@@ -1294,8 +2664,6 @@ function GUI:LoadTab(tabName)
     elseif tabName == 'Misc' then
         self:CreateMiscTab()
     end
-
-    print('\u{2705} [CANDY ZONE] Tab loaded: ' .. tabName)
 end
 function GUI:CreateSection(title)
     local section = Instance.new('Frame')
@@ -1874,63 +3242,243 @@ function GUI:CreateDropdown(parent, text, options, defaultOption, callback)
     return dropdown
 end
 function GUI:CreateVisualsTab()
-    local esp = self:CreateSection('ESP')
+    local player = self:CreateSection('Player \u{2014} ESP')
 
-    self:CreateToggle(esp, 'Highlight Murder', Config.Settings.ESP.Murder, function(s)
+    self:CreateToggle(player, 'Highlight Murder', Config.Settings.ESP.Murder, function(s)
         Config.Settings.ESP.Murder = s
-
-        print('[ESP] Murder:', s)
     end)
-    self:CreateToggle(esp, 'Highlight Sheriff', Config.Settings.ESP.Sheriff, function(s)
+    self:CreateToggle(player, 'Highlight Sheriff', Config.Settings.ESP.Sheriff, function(s)
         Config.Settings.ESP.Sheriff = s
-
-        print('[ESP] Sheriff:', s)
     end)
-    self:CreateToggle(esp, 'Highlight Hero', Config.Settings.ESP.Hero, function(s)
+    self:CreateToggle(player, 'Highlight Hero', Config.Settings.ESP.Hero, function(s)
         Config.Settings.ESP.Hero = s
-
-        print('[ESP] Hero:', s)
     end)
-    self:CreateToggle(esp, 'Highlight Innocent', Config.Settings.ESP.Innocent, function(s)
+    self:CreateToggle(player, 'Highlight Innocent', Config.Settings.ESP.Innocent, function(s)
         Config.Settings.ESP.Innocent = s
-
-        print('[ESP] Innocent:', s)
     end)
-    self:CreateColorPicker(esp, 'Murder ESP Color', Config.Settings.Colors.MurderESP, function(c)
+    self:CreateColorPicker(player, 'Murder ESP Color', Config.Settings.Colors.MurderESP, function(c)
         Config.Settings.Colors.MurderESP = c
     end)
-    self:CreateColorPicker(esp, 'Sheriff ESP Color', Config.Settings.Colors.SheriffESP, function(c)
+    self:CreateColorPicker(player, 'Sheriff ESP Color', Config.Settings.Colors.SheriffESP, function(c)
         Config.Settings.Colors.SheriffESP = c
     end)
-    self:CreateColorPicker(esp, 'Innocent ESP Color', Config.Settings.Colors.InnocentESP, function(c)
+    self:CreateColorPicker(player, 'Innocent ESP Color', Config.Settings.Colors.InnocentESP, function(c)
         Config.Settings.Colors.InnocentESP = c
     end)
 
-    local player = self:CreateSection('Player')
+    local hatSec = self:CreateSection('Player \u{2014} Chinese Hat')
 
-    self:CreateToggle(player, 'ForceField', Config.Settings.Player.ForceField, function(s)
-        Config.Settings.Player.ForceField = s
+    self:CreateToggle(hatSec, 'Enable Hat', false, function(s)
+        Hat_ToggleEnabled(s)
+    end)
+    self:CreateDropdown(hatSec, 'Hat Style', {
+        'Classic',
+        'Drawing',
+    }, 'Classic', function(v)
+        Hat_ChangeStyle(v)
+    end)
+    self:CreateToggle(hatSec, 'Rainbow Mode', false, function(s)
+        HatVariables.rainbow = s
+    end)
+    self:CreateSlider(hatSec, 'Rainbow Speed', 1, 20, 5, function(v)
+        HatVariables.rainbowSpeed = v
+    end)
+    self:CreateSlider(hatSec, 'Transparency', 0, 100, 30, function(v)
+        HatVariables.transparency = v / 100
+    end)
+    self:CreateSlider(hatSec, 'Radius', 5, 100, 24, function(v)
+        HatVariables.radius = v / 10
+    end)
+    self:CreateSlider(hatSec, 'Height', 5, 50, 16, function(v)
+        HatVariables.height = v / 10
+    end)
+    self:CreateColorPicker(hatSec, 'Hat Color', HatVariables.color, function(c)
+        HatVariables.color = c
+    end)
 
-        print('[PLAYER] ForceField:', s)
-    end)
-    self:CreateColorPicker(player, 'ForceField Color', Config.Settings.Colors.ForceField, function(c)
-        Config.Settings.Colors.ForceField = c
-    end)
-    self:CreateToggle(player, 'Target ESP', Config.Settings.Player.TargetESP, function(s)
-        Config.Settings.Player.TargetESP = s
+    local trailSec = self:CreateSection('Player \u{2014} Trail')
 
-        print('[PLAYER] Target ESP:', s)
+    self:CreateToggle(trailSec, 'Enable Trail', false, function(s)
+        Trail_ToggleEnabled(s)
     end)
-    self:CreateColorPicker(player, 'Target ESP Color', Config.Settings.Colors.TargetESP, function(c)
-        Config.Settings.Colors.TargetESP = c
-    end)
-    self:CreateToggle(player, 'Aura Trail', Config.Settings.Player.AuraTrail, function(s)
-        Config.Settings.Player.AuraTrail = s
+    self:CreateToggle(trailSec, 'Gradient Mode', false, function(s)
+        TrailVariables.isGradient = s
 
-        print('[PLAYER] Aura Trail:', s)
+        if TrailVariables.enabled and LocalPlayer.Character then
+            Trail_AddToCharacter(LocalPlayer.Character)
+        end
     end)
-    self:CreateColorPicker(player, 'Aura Trail Color', Config.Settings.Colors.AuraTrail, function(c)
-        Config.Settings.Colors.AuraTrail = c
+    self:CreateSlider(trailSec, 'Lifetime', 1, 30, 5, function(v)
+        TrailVariables.lifetime = v / 10
+
+        Trail_UpdateAll()
+    end)
+    self:CreateToggle(trailSec, 'Rainbow', false, function(s)
+        TrailVariables.rainbow = s
+
+        Trail_UpdateAll()
+    end)
+    self:CreateColorPicker(trailSec, 'Static Color', TrailVariables.colorStatic, function(c)
+        TrailVariables.colorStatic = c
+
+        Trail_UpdateAll()
+    end)
+
+    local ffSec = self:CreateSection('Player \u{2014} ForceField')
+
+    self:CreateToggle(ffSec, 'Enable ForceField', false, function(s)
+        ForceField_ToggleEnabled(s)
+    end)
+    self:CreateToggle(ffSec, 'Rainbow Mode', false, function(s)
+        ForceFieldVariables.rainbow = s
+
+        ForceField_Update()
+    end)
+    self:CreateColorPicker(ffSec, 'ForceField Color', ForceFieldVariables.color, function(c)
+        ForceFieldVariables.color = c
+
+        if ForceFieldVariables.enabled then
+            ForceField_Apply(LocalPlayer.Character)
+        end
+    end)
+
+    local auraSec = self:CreateSection('Player \u{2014} Aura Trailer')
+
+    self:CreateToggle(auraSec, 'Enable Aura Trailer', false, function(s)
+        AuraTrailer_Toggle(s)
+    end)
+    self:CreateColorPicker(auraSec, 'Aura Color', AuraTrailerVariables.color, function(c)
+        AuraTrailerVariables.color = c
+
+        if AuraTrailerVariables.enabled then
+            AuraTrailer_Update()
+        end
+    end)
+    self:CreateSlider(auraSec, 'Lifetime', 1, 30, 5, function(v)
+        AuraTrailerVariables.lifetime = v / 10
+
+        if AuraTrailerVariables.enabled then
+            AuraTrailer_Update()
+        end
+    end)
+
+    local classicAura = self:CreateSection('Player \u{2014} Classic Aura')
+
+    self:CreateToggle(classicAura, 'Enable Classic Aura', false, function(s)
+        ClassicAuraEnabled = s
+
+        ClassicAura_RefreshAll()
+    end)
+
+    for _, name in ipairs(AuraModels)do
+        self:CreateToggle(classicAura, name, false, function(s)
+            ClassicAuraSelected[name] = s
+
+            ClassicAura_RefreshAll()
+        end)
+    end
+
+    local particleAura = self:CreateSection('Player \u{2014} Particle Aura')
+
+    self:CreateToggle(particleAura, 'Enable Particle Aura', false, function(s)
+        ParticleAuraEnabled = s
+
+        ParticleAura_RefreshAll()
+    end)
+    self:CreateColorPicker(particleAura, 'Particle Color', ParticleAuraColor, function(c)
+        ParticleAuraColor = c
+
+        ParticleAura_RefreshAll()
+    end)
+
+    for _, name in ipairs(PARTICLE_AURA_NAMES)do
+        self:CreateToggle(particleAura, name, false, function(s)
+            ParticleAuraSelected[name] = s
+
+            ParticleAura_RefreshAll()
+        end)
+    end
+
+    local skySec = self:CreateSection('World \u{2014} Skybox')
+    local skyList = {}
+
+    for k in pairs(SkyboxAssets)do
+        table.insert(skyList, k)
+    end
+
+    table.sort(skyList)
+    self:CreateDropdown(skySec, 'Select Skybox', skyList, 'HD', function(v)
+        SkyboxVariables.current = v
+
+        if SkyboxVariables.customEnabled then
+            Skybox_Apply(v)
+        end
+    end)
+    self:CreateToggle(skySec, 'Enable Skybox', false, function(s)
+        SkyboxVariables.customEnabled = s
+
+        if s then
+            Skybox_Apply(SkyboxVariables.current)
+        else
+            Skybox_RestoreDefault()
+        end
+    end)
+
+    local lightSec = self:CreateSection('World \u{2014} Lighting')
+
+    self:CreateToggle(lightSec, 'Time Changer', false, function(s)
+        WorldVariables.timeEnabled = s
+    end)
+    self:CreateSlider(lightSec, 'Time (0-24)', 0, 24, 12, function(v)
+        WorldVariables.timeValue = v
+    end)
+    self:CreateToggle(lightSec, 'Full Bright', false, function(s)
+        WorldVariables.fullBrightEnabled = s
+
+        if not s then
+            Lighting.Brightness = defaultLighting.Brightness
+            Lighting.GlobalShadows = defaultLighting.GlobalShadows
+            Lighting.OutdoorAmbient = defaultLighting.OutdoorAmbient
+        end
+    end)
+
+    local nebulaSec = self:CreateSection('World \u{2014} Nebula')
+
+    self:CreateToggle(nebulaSec, 'Enable Nebula', false, function(s)
+        NebulaVariables.enabled = s
+
+        if s then
+            Nebula_Enable()
+        else
+            Nebula_Disable()
+        end
+    end)
+    self:CreateColorPicker(nebulaSec, 'Nebula Color', NebulaVariables.themeColor, function(c)
+        NebulaVariables.themeColor = c
+
+        Nebula_UpdateColor()
+    end)
+
+    local screenSec = self:CreateSection('World \u{2014} Screen Effect')
+
+    self:CreateToggle(screenSec, 'Enable Screen Stretch', false, function(s)
+        Screen_Toggle(s)
+    end)
+    self:CreateSlider(screenSec, 'Stretch Intensity', 0, 20, 0, function(v)
+        WorldVariables.screenIntensity = v / 100
+    end)
+
+    local utilSec = self:CreateSection('World \u{2014} Utilities')
+
+    self:CreateToggle(utilSec, 'Anime Image', false, function(s)
+        Anime_Toggle(s)
+    end)
+    self:CreateToggle(utilSec, 'Minecraft Textures', false, function(s)
+        if s then
+            applyTexturePack()
+        else
+            clearTexturePack()
+        end
     end)
 end
 function GUI:CreateCombatTab()
@@ -1938,60 +3486,61 @@ function GUI:CreateCombatTab()
 
     self:CreateToggle(camlock, 'Camlock Aim', Config.Settings.Combat.Camlock, function(s)
         Config.Settings.Combat.Camlock = s
-
-        print('[CAMLOCK] Enabled:', s)
     end)
     self:CreateSlider(camlock, 'FOV', 0, 360, Config.Settings.Combat.CamlockFOV, function(v)
         Config.Settings.Combat.CamlockFOV = v
-
-        print('[CAMLOCK] FOV:', v)
     end)
     self:CreateSlider(camlock, 'Predict', 0, 200, Config.Settings.Combat.CamlockPredict, function(v)
         Config.Settings.Combat.CamlockPredict = v
-
-        print('[CAMLOCK] Predict:', v)
     end)
     self:CreateToggle(camlock, 'Visible Check', Config.Settings.Combat.VisibleCheck, function(s)
         Config.Settings.Combat.VisibleCheck = s
-
-        print('[CAMLOCK] Visible:', s)
     end)
     self:CreateSlider(camlock, 'Smoothness', 0, 100, Config.Settings.Combat.CamlockSmooth, function(v)
         Config.Settings.Combat.CamlockSmooth = v
-
-        print('[CAMLOCK] Smoothness:', v)
     end)
 
     local silent = self:CreateSection('Silent Aim')
 
     self:CreateToggle(silent, 'Silent Aim', Config.Settings.Combat.SilentAim, function(s)
         Config.Settings.Combat.SilentAim = s
-
-        print('[SILENT] Enabled:', s)
     end)
     self:CreateSlider(silent, 'FOV', 0, 360, Config.Settings.Combat.SilentFOV, function(v)
         Config.Settings.Combat.SilentFOV = v
-
-        print('[SILENT] FOV:', v)
     end)
     self:CreateSlider(silent, 'Predict', 0, 200, Config.Settings.Combat.SilentPredict, function(v)
         Config.Settings.Combat.SilentPredict = v
-
-        print('[SILENT] Predict:', v)
-    end)
-    self:CreateToggle(silent, 'Visible Check', true, function(s)
-        print('[SILENT] Visible:', s)
     end)
 
-    local buttons = self:CreateSection('Buttons')
+    local shootSec = self:CreateSection('Shoot & Kill')
 
-    self:CreateToggle(buttons, 'Auto Shoot', Config.Settings.Combat.AutoShoot, function(s)
+    self:CreateToggle(shootSec, 'Draggable Shoot Button', false, function(s)
+        if s then
+            createDraggableShootButton()
+        else
+            removeDraggableShootButton()
+        end
+    end)
+    self:CreateButton(shootSec, 'Shoot Murderer Now', function()
+        shootMurdererDirect()
+    end)
+    self:CreateToggle(shootSec, 'Auto Shoot Murderer', Config.Settings.Combat.AutoShoot, function(s)
         Config.Settings.Combat.AutoShoot = s
-
-        print('[AUTO] Auto Shoot:', s)
     end)
-    self:CreateSlider(buttons, 'Predict', 0, 200, 100, function(v)
-        print('[AUTO] Predict:', v)
+    self:CreateToggle(shootSec, 'Auto Kill All', Config.Settings.Combat.AutoKillAll, function(s)
+        Config.Settings.Combat.AutoKillAll = s
+    end)
+    self:CreateButton(shootSec, 'Kill All Now', function()
+        killAll()
+    end)
+
+    local farmSec = self:CreateSection('AutoFarm & Bomb')
+
+    self:CreateToggle(farmSec, 'AutoFarm Coins', Config.Settings.Combat.AutoFarm, function(s)
+        Config.Settings.Combat.AutoFarm = s
+    end)
+    self:CreateButton(farmSec, 'Bomb Jump', function()
+        executeBombJump()
     end)
 end
 function GUI:CreateRageTab()
@@ -1999,46 +3548,30 @@ function GUI:CreateRageTab()
 
     self:CreateToggle(rage, 'SpinBot', Config.Settings.Rage.SpinBot, function(s)
         Config.Settings.Rage.SpinBot = s
-
-        print('[RAGE] SpinBot:', s)
     end)
     self:CreateSlider(rage, 'SpinBot Speed', 1, 100, Config.Settings.Rage.SpinSpeed, function(v)
         Config.Settings.Rage.SpinSpeed = v
-
-        print('[RAGE] Spin Speed:', v)
     end)
     self:CreateToggle(rage, 'Bhop', Config.Settings.Rage.Bhop, function(s)
         Config.Settings.Rage.Bhop = s
-
-        print('[RAGE] Bhop:', s)
     end)
     self:CreateSlider(rage, 'Bhop Height', 1, 50, Config.Settings.Rage.BhopHeight, function(v)
         Config.Settings.Rage.BhopHeight = v
-
-        print('[RAGE] Bhop Height:', v)
     end)
     self:CreateToggle(rage, 'Speed Glitch', Config.Settings.Rage.SpeedGlitch, function(s)
         Config.Settings.Rage.SpeedGlitch = s
-
-        print('[RAGE] Speed Glitch:', s)
     end)
     self:CreateSlider(rage, 'Speed Force', 15, 100, Config.Settings.Rage.SpeedForce, function(v)
         Config.Settings.Rage.SpeedForce = v
-
-        print('[RAGE] Speed Force:', v)
     end)
     self:CreateToggle(rage, 'Noclip', Config.Settings.Rage.Noclip, function(s)
         setNoclip(s)
-        print('[RAGE] Noclip:', s)
     end)
     self:CreateToggle(rage, 'Fly', Config.Settings.Rage.Fly, function(s)
         setFly(s)
-        print('[RAGE] Fly:', s)
     end)
     self:CreateSlider(rage, 'Fly Speed', 10, 150, Config.Settings.Rage.FlySpeed, function(v)
         Config.Settings.Rage.FlySpeed = v
-
-        print('[RAGE] Fly Speed:', v)
     end)
 end
 function GUI:CreateFunTab()
@@ -2065,7 +3598,7 @@ function GUI:CreateFunTab()
         'Bonk',
         'Pop',
     }, 'None', function(sound)
-        print('[HITSOUND] Selected:', sound)
+        print('[HITSOUND]', sound)
     end)
 end
 function GUI:CreateSettingsTab()
@@ -2084,23 +3617,15 @@ function GUI:CreateSettingsTab()
 
     self:CreateKeybindButton(keys, 'Toggle GUI', Config.Settings.Keybinds.ToggleGUI, function(key)
         Config.Settings.Keybinds.ToggleGUI = key
-
-        print('[KEYBIND] Toggle GUI:', key.Name)
     end)
     self:CreateKeybindButton(keys, 'Panic Key', Config.Settings.Keybinds.PanicKey, function(key)
         Config.Settings.Keybinds.PanicKey = key
-
-        print('[KEYBIND] Panic Key:', key.Name)
     end)
     self:CreateKeybindButton(keys, 'Camlock', Config.Settings.Keybinds.Camlock, function(key)
         Config.Settings.Keybinds.Camlock = key
-
-        print('[KEYBIND] Camlock:', key.Name)
     end)
     self:CreateKeybindButton(keys, 'Silent Aim', Config.Settings.Keybinds.SilentAim, function(key)
         Config.Settings.Keybinds.SilentAim = key
-
-        print('[KEYBIND] Silent Aim:', key.Name)
     end)
 end
 function GUI:CreateMiscTab()
@@ -2109,17 +3634,12 @@ function GUI:CreateMiscTab()
     self:CreateButton(util, 'Copy Game Link', function()
         if setclipboard then
             setclipboard('https://www.roblox.com/games/' .. game.PlaceId)
-            print('[MISC] Link copied!')
         end
     end)
     self:CreateButton(util, 'Lower Graphics', function()
-        local lighting = game:GetService('Lighting')
-
-        lighting.GlobalShadows = false
-        lighting.FogEnd = 9e9
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 9e9
         settings().Rendering.QualityLevel = 1
-
-        print('[MISC] Graphics lowered')
     end)
 
     local info = self:CreateSection('Information')
@@ -2130,8 +3650,6 @@ function GUI:CreateMiscTab()
 end
 function GUI:ToggleMain()
     self.Main.IsOpen = not self.Main.IsOpen
-
-    print('\u{1f36c} [CANDY ZONE] Toggle Main! IsOpen: ' .. tostring(self.Main.IsOpen))
 
     if self.Main.IsOpen then
         self.Main.Blur.Visible = true
@@ -2144,7 +3662,6 @@ function GUI:ToggleMain()
         Util:Tween(self.Main.Window, {
             Position = UDim2.new(0.5, -Config.Size.Window.Width / 2, 0.5, -Config.Size.Window.Height / 2),
         }, 0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-        print('\u{2705} [CANDY ZONE] GUI OPENED!')
     else
         Util:Tween(self.Main.Blur, {BackgroundTransparency = 1}, Config.Anim.Normal)
         Util:Tween(self.Main.Window, {
@@ -2154,8 +3671,6 @@ function GUI:ToggleMain()
 
         self.Main.Blur.Visible = false
         self.Main.Window.Visible = false
-
-        print('\u{2705} [CANDY ZONE] GUI CLOSED!')
     end
 end
 
@@ -2164,18 +3679,26 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         return
     end
     if input.KeyCode == Config.Settings.Keybinds.ToggleGUI then
-        print('\u{1f511} [CANDY ZONE] Toggle key pressed!')
         GUI:ToggleMain()
     elseif input.KeyCode == Config.Settings.Keybinds.PanicKey then
-        print('\u{26a0}\u{fe0f} [CANDY ZONE] Panic key pressed! Destroying...')
         GUI.ScreenGui:Destroy()
         Snow:Destroy()
+        removeDraggableShootButton()
 
         for _, c in ipairs(Features.Connections)do
             pcall(function()
                 c:Disconnect()
             end)
         end
+    end
+end)
+task.spawn(function()
+    while true do
+        if Config.Settings.Combat.AutoShoot then
+            pcall(shootMurdererDirect)
+        end
+
+        task.wait(0.12)
     end
 end)
 GUI:Initialize()
@@ -2186,3 +3709,11 @@ pcall(function()
         Duration = 5,
     })
 end)
+print('\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}')
+print('\u{1f36c} CANDY ZONE MM2 v' .. Config.Version)
+print('\u{2705} Successfully Loaded!')
+print('\u{1f3ae} Game: ' .. Util:GetGameName())
+print('\u{1f464} Developer: ' .. Config.Developer)
+print('\u{1f4ac} Discord: ' .. Config.Discord)
+print('\u{2328}\u{fe0f} Toggle: RightShift | Panic: End')
+print('\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}')
