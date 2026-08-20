@@ -3326,7 +3326,7 @@ local auraSec = self:CreateSection('Player — Aura Trailer')
         end
     end)
 
-    local modelsSec = self:CreateSection('Models — Sahurik')
+    local modelsSec = self:CreateSection('Models')
     
     local SahurikVars = {
         enabled = false,
@@ -3380,7 +3380,7 @@ local auraSec = self:CreateSection('Player — Aura Trailer')
         SahurikVars.attached = false
     end
     
-    self:CreateToggle(modelsSec, 'Enable Sahurik Model', false, function(s)
+    self:CreateToggle(modelsSec, 'Sahur Model', false, function(s)
         SahurikVars.enabled = s
         local char = LocalPlayer.Character
         if s then
