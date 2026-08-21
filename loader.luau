@@ -4687,12 +4687,10 @@ function GUI:CreateSettingsTab()
     self:CreateKeybindButton(keys, 'Silent Aim', Config.Settings.Keybinds.SilentAim, function(key)
         Config.Settings.Keybinds.SilentAim = key
     end)
-      local config = self:CreateSection('Config System')
 
-    -- Текущий конфиг
-    local currentLabel = self:CreateLabel(config, 'Current Config', 'Default')
+    local config = self:CreateSection('Config System')
+    self:CreateLabel(config, 'Current Config', 'Default')
     
-    -- Сохранение с именем
     self:CreateButton(config, 'Save Current Config', function()
         local ok = saveCurrentConfig()
         if ok then
@@ -4702,7 +4700,6 @@ function GUI:CreateSettingsTab()
         end
     end)
     
-    -- Загрузка
     self:CreateButton(config, 'Load Saved Config', function()
         local ok = loadAndApplyConfig()
         if ok then
@@ -4713,7 +4710,6 @@ function GUI:CreateSettingsTab()
         end
     end)
     
-    -- Сброс
     self:CreateButton(config, 'Reset to Defaults', function()
         resetToDefaults()
         print('[CandyZone] Config reset to defaults')
@@ -4721,11 +4717,8 @@ function GUI:CreateSettingsTab()
     end)
     
     self:CreateDivider(config)
-    
-    -- Новый блок с сохранением/загрузкой именованных конфигов
     self:CreateLabel(config, '--- Named Configs ---', '')
     
-    -- Поле для ввода имени
     local nameInput = Instance.new("TextBox")
     nameInput.Size = UDim2.new(1, 0, 0, 28)
     nameInput.Position = UDim2.new(0, 0, 0, 0)
@@ -4739,7 +4732,6 @@ function GUI:CreateSettingsTab()
     nameInput.Parent = config.Container
     Util:Corner(nameInput, 6)
     
-    -- Кнопки для работы с именем
     local btnFrame = Instance.new("Frame")
     btnFrame.Size = UDim2.new(1, 0, 0, 32)
     btnFrame.BackgroundTransparency = 1
@@ -4817,7 +4809,6 @@ function GUI:CreateSettingsTab()
         end
     end)
     
-    -- Список сохраненных конфигов (как дропдаун)
     local listFrame = Instance.new("ScrollingFrame")
     listFrame.Size = UDim2.new(1, 0, 0, 80)
     listFrame.BackgroundColor3 = Config.Color.Background.Input
@@ -4868,7 +4859,6 @@ function GUI:CreateSettingsTab()
             btn.Parent = listFrame
             Util:Corner(btn, 4)
             
-            -- Подсветка при наведении
             btn.MouseEnter:Connect(function()
                 Util:Tween(btn, {
                     BackgroundColor3 = Config.Color.Background.Hover,
@@ -4887,7 +4877,6 @@ function GUI:CreateSettingsTab()
                 local ok = loadConfigByName(file)
                 if ok then
                     print('[CandyZone] Config loaded: ' .. file)
-                    -- Обновляем текущий конфиг в лейбле
                     for _, child in ipairs(config.Container:GetChildren()) do
                         if child:IsA("TextLabel") and child.Text:find("Current Config") then
                             child.Text = "Current Config: " .. file
