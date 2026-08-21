@@ -4688,9 +4688,9 @@ function GUI:CreateSettingsTab()
         Config.Settings.Keybinds.SilentAim = key
     end)
       local config = self:CreateSection('Config System')
-    
+
     -- Текущий конфиг
-    self:CreateLabel(config, 'Current Config', 'Default')
+    local currentLabel = self:CreateLabel(config, 'Current Config', 'Default')
     
     -- Сохранение с именем
     self:CreateButton(config, 'Save Current Config', function()
@@ -4817,7 +4817,7 @@ function GUI:CreateSettingsTab()
         end
     end)
     
-    -- Список сохраненных конфигов
+    -- Список сохраненных конфигов (как дропдаун)
     local listFrame = Instance.new("ScrollingFrame")
     listFrame.Size = UDim2.new(1, 0, 0, 80)
     listFrame.BackgroundColor3 = Config.Color.Background.Input
@@ -4844,6 +4844,17 @@ function GUI:CreateSettingsTab()
             end
         end
         local files = getConfigList()
+        if #files == 0 then
+            local empty = Instance.new("TextLabel")
+            empty.Size = UDim2.new(1, 0, 0, 24)
+            empty.BackgroundTransparency = 1
+            empty.Text = "No configs found"
+            empty.TextColor3 = Config.Color.Text.Disabled
+            empty.TextSize = 11
+            empty.Font = Enum.Font.Gotham
+            empty.Parent = listFrame
+            return
+        end
         for _, file in ipairs(files) do
             local btn = Instance.new("TextButton")
             btn.Size = UDim2.new(1, 0, 0, 24)
@@ -4857,6 +4868,18 @@ function GUI:CreateSettingsTab()
             btn.Parent = listFrame
             Util:Corner(btn, 4)
             
+            -- Подсветка при наведении
+            btn.MouseEnter:Connect(function()
+                Util:Tween(btn, {
+                    BackgroundColor3 = Config.Color.Background.Hover,
+                }, Config.Anim.Fast)
+            end)
+            btn.MouseLeave:Connect(function()
+                Util:Tween(btn, {
+                    BackgroundColor3 = Config.Color.Background.Secondary,
+                }, Config.Anim.Fast)
+            end)
+            
             btn.MouseButton1Click:Connect(function()
                 nameInput.Text = file
                 loadBtn.Visible = true
@@ -4864,6 +4887,13 @@ function GUI:CreateSettingsTab()
                 local ok = loadConfigByName(file)
                 if ok then
                     print('[CandyZone] Config loaded: ' .. file)
+                    -- Обновляем текущий конфиг в лейбле
+                    for _, child in ipairs(config.Container:GetChildren()) do
+                        if child:IsA("TextLabel") and child.Text:find("Current Config") then
+                            child.Text = "Current Config: " .. file
+                            break
+                        end
+                    end
                     self:LoadTab(self.Main.CurrentTab)
                 end
             end)
