@@ -2705,31 +2705,66 @@ end
 
 local function killAll()
     local char = LocalPlayer.Character
-    if not char then
-        return
-    end
-    local knife = char:FindFirstChild('Knife') or (LocalPlayer:FindFirstChild('Backpack') and LocalPlayer.Backpack:FindFirstChild('Knife'))
+    if not char then return end
+    
+    local knife = char:FindFirstChild("Knife") or (LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Knife"))
     if not knife then
         return
     end
+    
+    -- Берём нож в руку если в backpack
     if knife.Parent == LocalPlayer.Backpack then
         char.Humanoid:EquipTool(knife)
-        task.wait(0.05)
+        task.wait(0.1)
     end
-    for _, victim in ipairs(Players:GetPlayers()) do
-        if victim ~= LocalPlayer and victim.Character and victim.Character:FindFirstChild('HumanoidRootPart') then
-            local vHum = victim.Character:FindFirstChildOfClass('Humanoid')
-            if vHum and vHum.Health > 0 then
-                local dist = (char.HumanoidRootPart.Position - victim.Character.HumanoidRootPart.Position).Magnitude
-                if dist <= 30 then
-                    pcall(function()
-                        knife:Activate()
-                        local targetPart = victim.Character:FindFirstChild('HumanoidRootPart') or victim.Character:FindFirstChild('Torso') or victim.Character:FindFirstChild('UpperTorso')
-                        if targetPart and firetouchinterest then
-                            firetouchinterest(targetPart, knife.Handle, 0)
-                            firetouchinterest(targetPart, knife.Handle, 1)
-                        end
-                    end)
+    
+    -- Находим RemoteEvent
+    local handleTouched = knife:FindFirstChild("Events") and knife.Events:FindFirstChild("HandleTouched")
+    
+    if handleTouched then
+        -- Собираем цели
+        local targets = {}
+        for _, target in ipairs(Players:GetPlayers()) do
+            if target ~= LocalPlayer and target.Character then
+                local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+                local humanoid = target.Character:FindFirstChild("Humanoid")
+                if hrp and humanoid and humanoid.Health > 0 then
+                    table.insert(targets, hrp)
+                end
+            end
+        end
+        
+        -- Файрим remote по каждому
+        for _, hrp in pairs(targets) do
+            pcall(function()
+                handleTouched:FireServer(hrp)
+            end)
+            task.wait(0.05)
+        end
+        
+        -- Анимация удара
+        local stabbed = knife:FindFirstChild("KnifeStabbed")
+        if stabbed then
+            pcall(function()
+                stabbed:FireServer()
+            end)
+        end
+    else
+        -- Альтернатива через firetouchinterest
+        local knifeHandle = knife:FindFirstChild("Handle")
+        if knifeHandle then
+            for _, target in ipairs(Players:GetPlayers()) do
+                if target ~= LocalPlayer and target.Character then
+                    local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+                    local humanoid = target.Character:FindFirstChild("Humanoid")
+                    if hrp and humanoid and humanoid.Health > 0 then
+                        pcall(function()
+                            firetouchinterest(knifeHandle, hrp, 0)
+                            task.wait(0.05)
+                            firetouchinterest(knifeHandle, hrp, 1)
+                            task.wait(0.05)
+                        end)
+                    end
                 end
             end
         end
@@ -2741,7 +2776,7 @@ task.spawn(function()
         if Config.Settings.Combat.AutoKillAll then
             pcall(killAll)
         end
-        task.wait(0.15)
+        task.wait(0.3)
     end
 end)
 
