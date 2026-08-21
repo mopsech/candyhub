@@ -4081,6 +4081,27 @@ function GUI:CreateFunTab()
     self:CreateButton(fling, 'Refresh Player List', function()
         self:LoadTab('Fun')
     end)
+
+    local teleport = self:CreateSection('Teleport To Player')
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            self:CreateButton(teleport, player.DisplayName .. ' (@' .. player.Name .. ')', function()
+                local char = LocalPlayer.Character
+                local targetChar = player.Character
+                if char and targetChar then
+                    local hrp = char:FindFirstChild('HumanoidRootPart')
+                    local targetHrp = targetChar:FindFirstChild('HumanoidRootPart')
+                    if hrp and targetHrp then
+                        hrp.CFrame = targetHrp.CFrame * CFrame.new(0, 2, 2)
+                        print('Teleported to ' .. player.Name)
+                    end
+                end
+            end)
+        end
+    end
+    self:CreateButton(teleport, 'Refresh Player List', function()
+        self:LoadTab('Fun')
+    end)
 end
 
 function GUI:CreateSettingsTab()
