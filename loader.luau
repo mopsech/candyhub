@@ -1689,25 +1689,6 @@ local function createDraggableShootButton()
     btn.Parent = sg
     Util:Corner(btn, 12)
     Util:Stroke(btn, 2, Color3.fromRGB(0, 150, 255), 0.3)
-    local dragging, dragStart, startPos = false, nil, nil
-    btn.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = btn.Position
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - dragStart
-            btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end)
     btn.MouseButton1Click:Connect(function()
         local ripple = Instance.new('Frame')
         ripple.AnchorPoint = Vector2.new(0.5, 0.5)
