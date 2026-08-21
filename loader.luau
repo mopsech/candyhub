@@ -386,6 +386,114 @@ local Features = {
     BombJumpOnCooldown = false,
 }
 
+local ESP = {
+    Enabled = false,
+    Connection = nil,
+    Colors = {
+        Murderer = Color3.fromRGB(255, 40, 40),
+        Sheriff = Color3.fromRGB(40, 130, 255),
+        Hero = Color3.fromRGB(255, 215, 0),
+        Innocent = Color3.fromRGB(0, 220, 0),
+    },
+    Show = {
+        Murderer = true,
+        Sheriff = true,
+        Hero = true,
+        Innocent = true,
+        Self = true,
+    },
+    Data = {},
+    LastUpdate = 0,
+}
+
+local function ClearESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Character then
+            local h = player.Character:FindFirstChild('CandyZone_ESP')
+            if h then h:Destroy() end
+        end
+    end
+    ESP.Data = {}
+end
+
+local function ApplyESP(player, color)
+    local char = player.Character
+    if not char then return end
+    local h = char:FindFirstChild('CandyZone_ESP') or Instance.new('Highlight')
+    h.Name = 'CandyZone_ESP'
+    h.Parent = char
+    h.FillColor = color
+    h.FillTransparency = 0.7
+    h.OutlineColor = Color3.fromRGB(255, 255, 255)
+    h.OutlineTransparency = 0.15
+    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+end
+
+local function GetRole(player)
+    local data = ESP.Data[player.Name]
+    if data then
+        local role = tostring(data.Role or data.role or data.Team or ''):lower()
+        if role:find('murd') then return 'Murderer' end
+        if role:find('sheriff') or role:find('gun') then return 'Sheriff' end
+        if role:find('hero') then return 'Hero' end
+    end
+    return 'Innocent'
+end
+
+local function StartESP()
+    if ESP.Connection then
+        ESP.Connection:Disconnect()
+        ESP.Connection = nil
+    end
+    ESP.Connection = RunService.Heartbeat:Connect(function()
+        if not ESP.Enabled then
+            ClearESP()
+            return
+        end
+        if tick() - ESP.LastUpdate > 0.5 then
+            local remote = ReplicatedStorage:FindFirstChild('GetCurrentPlayerData', true)
+            if remote and remote:IsA('RemoteFunction') then
+                local ok, data = pcall(function() return remote:InvokeServer() end)
+                if ok and type(data) == 'table' then ESP.Data = data end
+            end
+            ESP.LastUpdate = tick()
+        end
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player.Character then
+                local role = GetRole(player)
+                local show = ESP.Show[role]
+                if player == LocalPlayer and not ESP.Show.Self then show = false end
+                if show then
+                    ApplyESP(player, ESP.Colors[role])
+                else
+                    local h = player.Character:FindFirstChild('CandyZone_ESP')
+                    if h then h:Destroy() end
+                end
+            end
+        end
+    end)
+end
+
+local function ToggleESP(state)
+    ESP.Enabled = state
+    if state then StartESP() else if ESP.Connection then ESP.Connection:Disconnect() ESP.Connection = nil end ClearESP() end
+end
+
+local function ToggleMurderer(state) ESP.Show.Murderer = state end
+local function ToggleSheriff(state) ESP.Show.Sheriff = state end
+local function ToggleHero(state) ESP.Show.Hero = state end
+local function ToggleInnocent(state) ESP.Show.Innocent = state end
+local function ToggleSelf(state) ESP.Show.Self = state end
+local function SetMurdererColor(c) ESP.Colors.Murderer = c end
+local function SetSheriffColor(c) ESP.Colors.Sheriff = c end
+local function SetHeroColor(c) ESP.Colors.Hero = c end
+local function SetInnocentColor(c) ESP.Colors.Innocent = c end
+
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    if ESP.Enabled then ClearESP() StartESP() end
+end)
+
 local Murder = nil
 local grabbingGun = false
 
@@ -3534,25 +3642,36 @@ local auraSec = self:CreateSection('Player — Aura Trailer')
     self:CreateToggle(utilSec, 'Anime Image', false, function(s)
         Anime_Toggle(s)
     end)
-
-    local customSec = self:CreateSection('Custom')
-    self:CreateToggle(customSec, 'Enable Custom Features', false, function(s)
-        ToggleCustomFeatures(s)
+    local espSec = self:CreateSection('ESP Settings')
+    self:CreateToggle(espSec, 'Enable ESP', false, function(s)
+        ToggleESP(s)
     end)
-    self:CreateToggle(customSec, 'Invisible Head', false, function(s)
-        ToggleHead(s)
+    self:CreateToggle(espSec, 'Show Murderer', true, function(s)
+        ToggleMurderer(s)
     end)
-    self:CreateToggle(customSec, 'Invisible Legs', false, function(s)
-        ToggleLegsInvisible(s)
+    self:CreateToggle(espSec, 'Show Sheriff', true, function(s)
+        ToggleSheriff(s)
     end)
-    self:CreateToggle(customSec, 'Custom Mesh Legs', false, function(s)
-        ToggleLegsMesh(s)
+    self:CreateToggle(espSec, 'Show Hero', true, function(s)
+        ToggleHero(s)
     end)
-    self:CreateToggle(customSec, 'Custom Texture Legs', false, function(s)
-        ToggleLegsTexture(s)
+    self:CreateToggle(espSec, 'Show Innocent', true, function(s)
+        ToggleInnocent(s)
     end)
-    self:CreateButton(customSec, 'Apply Custom Features Now', function()
-        ApplyCustomFeatures()
+    self:CreateToggle(espSec, 'Show Self', true, function(s)
+        ToggleSelf(s)
+    end)
+    self:CreateColorPicker(espSec, 'Murderer Color', ESP.Colors.Murderer, function(c)
+        SetMurdererColor(c)
+    end)
+    self:CreateColorPicker(espSec, 'Sheriff Color', ESP.Colors.Sheriff, function(c)
+        SetSheriffColor(c)
+    end)
+    self:CreateColorPicker(espSec, 'Hero Color', ESP.Colors.Hero, function(c)
+        SetHeroColor(c)
+    end)
+    self:CreateColorPicker(espSec, 'Innocent Color', ESP.Colors.Innocent, function(c)
+        SetInnocentColor(c)
     end)
 end
 
