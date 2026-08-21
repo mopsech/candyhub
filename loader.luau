@@ -145,6 +145,501 @@ local Config = {
     },
 }
 
+-- ==================== CONFIG SYSTEM ====================
+local ConfigFolder = "CandyZone"
+local ConfigFile = "Candycfg.json"
+
+local function getConfigPath()
+    if isfolder and writefile and readfile then
+        return ConfigFolder .. "/" .. ConfigFile
+    end
+    return nil
+end
+
+local function ensureFolder()
+    if isfolder and not isfolder(ConfigFolder) then
+        pcall(function() makefolder(ConfigFolder) end)
+    end
+end
+
+local function loadConfig()
+    local path = getConfigPath()
+    if not path then return nil end
+    if not isfile(path) then return nil end
+    local success, data = pcall(function()
+        return readfile(path)
+    end)
+    if success and data then
+        local success2, parsed = pcall(function()
+            return game:GetService("HttpService"):JSONDecode(data)
+        end)
+        if success2 then
+            return parsed
+        end
+    end
+    return nil
+end
+
+local function saveConfig(data)
+    local path = getConfigPath()
+    if not path then return false end
+    ensureFolder()
+    local success, json = pcall(function()
+        return game:GetService("HttpService"):JSONEncode(data)
+    end)
+    if success and json then
+        pcall(function()
+            writefile(path, json)
+        end)
+        return true
+    end
+    return false
+end
+
+local function migrateConfig(saved, defaults)
+    if not saved then return defaults end
+    local result = {}
+    for key, defaultVal in pairs(defaults) do
+        if saved[key] ~= nil then
+            if type(defaultVal) == "table" and type(saved[key]) == "table" then
+                result[key] = migrateConfig(saved[key], defaultVal)
+            else
+                result[key] = saved[key]
+            end
+        else
+            result[key] = defaultVal
+        end
+    end
+    for key, val in pairs(saved) do
+        if result[key] == nil then
+            result[key] = val
+        end
+    end
+    return result
+end
+
+local DefaultConfig = {
+    ESP = {
+        Enabled = false,
+        Murderer = true,
+        Sheriff = true,
+        Hero = true,
+        Innocent = true,
+        Self = true,
+        Colors = {
+            Murderer = {255, 40, 40},
+            Sheriff = {40, 130, 255},
+            Hero = {255, 215, 0},
+            Innocent = {0, 220, 0},
+        },
+    },
+    Farm = {
+        Enabled = false,
+        Mode = "Underground",
+        TweenSpeed = 25,
+        AutoReset = true,
+        AvoidMurder = true,
+        UndergroundOffset = 4,
+        MaxDistance = 600,
+        CoinLimit = 40,
+    },
+    Combat = {
+        Camlock = false,
+        SilentAim = false,
+        AutoShoot = false,
+        CamlockFOV = 120,
+        CamlockPredict = 100,
+        CamlockSmooth = 50,
+        SilentFOV = 120,
+        SilentPredict = 100,
+        VisibleCheck = true,
+        AutoKillAll = false,
+        AntiFling = false,
+        AntiVoid = false,
+        AutoWallHop = false,
+        GrabGun = false,
+    },
+    Rage = {
+        SpinBot = false,
+        SpinSpeed = 50,
+        Noclip = false,
+        Fly = false,
+        FlySpeed = 50,
+        SpeedGlitch = false,
+        SpeedForce = 45,
+    },
+    Player = {
+        ForceField = false,
+        TargetESP = false,
+        AuraTrail = false,
+        Hat = {
+            Enabled = false,
+            Style = "Classic",
+            Rainbow = false,
+            RainbowSpeed = 5,
+            Transparency = 0.3,
+            Radius = 2.4,
+            Height = 1.6,
+            Color = {0, 255, 255},
+        },
+        Trail = {
+            Enabled = false,
+            Gradient = false,
+            Lifetime = 0.5,
+            Rainbow = false,
+            Color = {0, 255, 255},
+        },
+    },
+    Visuals = {
+        ESP = {
+            Murder = false,
+            Sheriff = false,
+            Innocent = false,
+            Hero = false,
+            TargetESP = false,
+            ArrowESP = false,
+        },
+        Colors = {
+            MurderESP = {255, 0, 0},
+            SheriffESP = {0, 0, 255},
+            InnocentESP = {0, 255, 0},
+            HeroESP = {255, 250, 0},
+            TargetESP = {255, 70, 90},
+            ArrowESP = {255, 255, 255},
+        },
+        Skybox = {
+            Enabled = false,
+            Current = "HD",
+        },
+        Nebula = {
+            Enabled = false,
+            Color = {173, 216, 230},
+        },
+        ScreenStretch = {
+            Enabled = false,
+            Intensity = 0,
+        },
+        Anime = false,
+        Snow = true,
+    },
+    Keybinds = {
+        ToggleGUI = "RightShift",
+        PanicKey = "End",
+        Camlock = "Q",
+        SilentAim = "E",
+    },
+    Window = {
+        Transparency = 0.1,
+    },
+}
+
+local function colorToTable(c)
+    return {c.R * 255, c.G * 255, c.B * 255}
+end
+
+local function tableToColor(t)
+    if not t or #t < 3 then return Color3.fromRGB(255, 255, 255) end
+    return Color3.fromRGB(t[1], t[2], t[3])
+end
+
+local function applySavedConfig(cfg)
+    if not cfg then return end
+    
+    -- ESP
+    if cfg.ESP then
+        ESP.Enabled = cfg.ESP.Enabled or false
+        ESP.Show.Murderer = cfg.ESP.Murderer ~= false
+        ESP.Show.Sheriff = cfg.ESP.Sheriff ~= false
+        ESP.Show.Hero = cfg.ESP.Hero ~= false
+        ESP.Show.Innocent = cfg.ESP.Innocent ~= false
+        ESP.Show.Self = cfg.ESP.Self ~= false
+        if cfg.ESP.Colors then
+            ESP.Colors.Murderer = tableToColor(cfg.ESP.Colors.Murderer)
+            ESP.Colors.Sheriff = tableToColor(cfg.ESP.Colors.Sheriff)
+            ESP.Colors.Hero = tableToColor(cfg.ESP.Colors.Hero)
+            ESP.Colors.Innocent = tableToColor(cfg.ESP.Colors.Innocent)
+        end
+    end
+    
+    -- Farm
+    if cfg.Farm then
+        FarmSettings.Enabled = cfg.Farm.Enabled or false
+        FarmSettings.Mode = cfg.Farm.Mode or "Underground"
+        FarmSettings.TweenSpeed = cfg.Farm.TweenSpeed or 25
+        FarmSettings.AutoReset = cfg.Farm.AutoReset ~= false
+        FarmSettings.AvoidMurder = cfg.Farm.AvoidMurder ~= false
+        FarmSettings.UndergroundOffset = cfg.Farm.UndergroundOffset or 4
+        FarmSettings.MaxDistance = cfg.Farm.MaxDistance or 600
+        FarmSettings.CoinLimit = cfg.Farm.CoinLimit or 40
+    end
+    
+    -- Combat
+    if cfg.Combat then
+        Config.Settings.Combat.Camlock = cfg.Combat.Camlock or false
+        Config.Settings.Combat.SilentAim = cfg.Combat.SilentAim or false
+        Config.Settings.Combat.AutoShoot = cfg.Combat.AutoShoot or false
+        Config.Settings.Combat.CamlockFOV = cfg.Combat.CamlockFOV or 120
+        Config.Settings.Combat.CamlockPredict = cfg.Combat.CamlockPredict or 100
+        Config.Settings.Combat.CamlockSmooth = cfg.Combat.CamlockSmooth or 50
+        Config.Settings.Combat.SilentFOV = cfg.Combat.SilentFOV or 120
+        Config.Settings.Combat.SilentPredict = cfg.Combat.SilentPredict or 100
+        Config.Settings.Combat.VisibleCheck = cfg.Combat.VisibleCheck ~= false
+        Config.Settings.Combat.AutoKillAll = cfg.Combat.AutoKillAll or false
+        Config.Settings.Combat.AntiFling = cfg.Combat.AntiFling or false
+        Config.Settings.Combat.AntiVoid = cfg.Combat.AntiVoid or false
+        Config.Settings.Combat.AutoWallHop = cfg.Combat.AutoWallHop or false
+        Config.Settings.Combat.GrabGun = cfg.Combat.GrabGun or false
+    end
+    
+    -- Rage
+    if cfg.Rage then
+        Config.Settings.Rage.SpinBot = cfg.Rage.SpinBot or false
+        Config.Settings.Rage.SpinSpeed = cfg.Rage.SpinSpeed or 50
+        Config.Settings.Rage.Noclip = cfg.Rage.Noclip or false
+        Config.Settings.Rage.Fly = cfg.Rage.Fly or false
+        Config.Settings.Rage.FlySpeed = cfg.Rage.FlySpeed or 50
+        Config.Settings.Rage.SpeedGlitch = cfg.Rage.SpeedGlitch or false
+        Config.Settings.Rage.SpeedForce = cfg.Rage.SpeedForce or 45
+    end
+    
+    -- Player (Hat, Trail, etc)
+    if cfg.Player then
+        if cfg.Player.Hat then
+            HatVariables.enabled = cfg.Player.Hat.Enabled or false
+            HatVariables.style = cfg.Player.Hat.Style or "Classic"
+            HatVariables.rainbow = cfg.Player.Hat.Rainbow or false
+            HatVariables.rainbowSpeed = cfg.Player.Hat.RainbowSpeed or 5
+            HatVariables.transparency = cfg.Player.Hat.Transparency or 0.3
+            HatVariables.radius = cfg.Player.Hat.Radius or 2.4
+            HatVariables.height = cfg.Player.Hat.Height or 1.6
+            HatVariables.color = tableToColor(cfg.Player.Hat.Color)
+        end
+        if cfg.Player.Trail then
+            TrailVariables.enabled = cfg.Player.Trail.Enabled or false
+            TrailVariables.isGradient = cfg.Player.Trail.Gradient or false
+            TrailVariables.lifetime = cfg.Player.Trail.Lifetime or 0.5
+            TrailVariables.rainbow = cfg.Player.Trail.Rainbow or false
+            TrailVariables.colorStatic = tableToColor(cfg.Player.Trail.Color)
+        end
+        Config.Settings.Player.ForceField = cfg.Player.ForceField or false
+        Config.Settings.Player.TargetESP = cfg.Player.TargetESP or false
+        Config.Settings.Player.AuraTrail = cfg.Player.AuraTrail or false
+    end
+    
+    -- Visuals
+    if cfg.Visuals then
+        if cfg.Visuals.ESP then
+            Config.Settings.ESP.Murder = cfg.Visuals.ESP.Murder or false
+            Config.Settings.ESP.Sheriff = cfg.Visuals.ESP.Sheriff or false
+            Config.Settings.ESP.Innocent = cfg.Visuals.ESP.Innocent or false
+            Config.Settings.ESP.Hero = cfg.Visuals.ESP.Hero or false
+            Config.Settings.ESP.TargetESP = cfg.Visuals.ESP.TargetESP or false
+            Config.Settings.ESP.ArrowESP = cfg.Visuals.ESP.ArrowESP or false
+        end
+        if cfg.Visuals.Colors then
+            Config.Settings.Colors.MurderESP = tableToColor(cfg.Visuals.Colors.MurderESP)
+            Config.Settings.Colors.SheriffESP = tableToColor(cfg.Visuals.Colors.SheriffESP)
+            Config.Settings.Colors.InnocentESP = tableToColor(cfg.Visuals.Colors.InnocentESP)
+            Config.Settings.Colors.HeroESP = tableToColor(cfg.Visuals.Colors.HeroESP)
+            Config.Settings.Colors.TargetESP = tableToColor(cfg.Visuals.Colors.TargetESP)
+            Config.Settings.Colors.ArrowESP = tableToColor(cfg.Visuals.Colors.ArrowESP)
+        end
+        if cfg.Visuals.Skybox then
+            SkyboxVariables.customEnabled = cfg.Visuals.Skybox.Enabled or false
+            SkyboxVariables.current = cfg.Visuals.Skybox.Current or "HD"
+        end
+        if cfg.Visuals.Nebula then
+            NebulaVariables.enabled = cfg.Visuals.Nebula.Enabled or false
+            NebulaVariables.themeColor = tableToColor(cfg.Visuals.Nebula.Color)
+        end
+        if cfg.Visuals.ScreenStretch then
+            WorldVariables.screenEnabled = cfg.Visuals.ScreenStretch.Enabled or false
+            WorldVariables.screenIntensity = cfg.Visuals.ScreenStretch.Intensity or 0
+        end
+        AnimeVariables.enabled = cfg.Visuals.Anime or false
+        Snow.active = cfg.Visuals.Snow ~= false
+        if cfg.Visuals.Snow ~= false and Snow.container then
+            Snow.container.Visible = true
+        elseif Snow.container then
+            Snow.container.Visible = false
+        end
+    end
+    
+    -- Keybinds
+    if cfg.Keybinds then
+        Config.Settings.Keybinds.ToggleGUI = Enum.KeyCode[cfg.Keybinds.ToggleGUI] or Enum.KeyCode.RightShift
+        Config.Settings.Keybinds.PanicKey = Enum.KeyCode[cfg.Keybinds.PanicKey] or Enum.KeyCode.End
+        Config.Settings.Keybinds.Camlock = Enum.KeyCode[cfg.Keybinds.Camlock] or Enum.KeyCode.Q
+        Config.Settings.Keybinds.SilentAim = Enum.KeyCode[cfg.Keybinds.SilentAim] or Enum.KeyCode.E
+    end
+    
+    -- Window
+    if cfg.Window and GUI and GUI.Main and GUI.Main.Window then
+        GUI.Main.Window.BackgroundTransparency = cfg.Window.Transparency or 0.1
+    end
+end
+
+local function buildConfig()
+    local cfg = {
+        ESP = {
+            Enabled = ESP.Enabled,
+            Murderer = ESP.Show.Murderer,
+            Sheriff = ESP.Show.Sheriff,
+            Hero = ESP.Show.Hero,
+            Innocent = ESP.Show.Innocent,
+            Self = ESP.Show.Self,
+            Colors = {
+                Murderer = colorToTable(ESP.Colors.Murderer),
+                Sheriff = colorToTable(ESP.Colors.Sheriff),
+                Hero = colorToTable(ESP.Colors.Hero),
+                Innocent = colorToTable(ESP.Colors.Innocent),
+            },
+        },
+        Farm = {
+            Enabled = FarmSettings.Enabled,
+            Mode = FarmSettings.Mode,
+            TweenSpeed = FarmSettings.TweenSpeed,
+            AutoReset = FarmSettings.AutoReset,
+            AvoidMurder = FarmSettings.AvoidMurder,
+            UndergroundOffset = FarmSettings.UndergroundOffset,
+            MaxDistance = FarmSettings.MaxDistance,
+            CoinLimit = FarmSettings.CoinLimit,
+        },
+        Combat = {
+            Camlock = Config.Settings.Combat.Camlock,
+            SilentAim = Config.Settings.Combat.SilentAim,
+            AutoShoot = Config.Settings.Combat.AutoShoot,
+            CamlockFOV = Config.Settings.Combat.CamlockFOV,
+            CamlockPredict = Config.Settings.Combat.CamlockPredict,
+            CamlockSmooth = Config.Settings.Combat.CamlockSmooth,
+            SilentFOV = Config.Settings.Combat.SilentFOV,
+            SilentPredict = Config.Settings.Combat.SilentPredict,
+            VisibleCheck = Config.Settings.Combat.VisibleCheck,
+            AutoKillAll = Config.Settings.Combat.AutoKillAll,
+            AntiFling = Config.Settings.Combat.AntiFling,
+            AntiVoid = Config.Settings.Combat.AntiVoid,
+            AutoWallHop = Config.Settings.Combat.AutoWallHop,
+            GrabGun = Config.Settings.Combat.GrabGun,
+        },
+        Rage = {
+            SpinBot = Config.Settings.Rage.SpinBot,
+            SpinSpeed = Config.Settings.Rage.SpinSpeed,
+            Noclip = Config.Settings.Rage.Noclip,
+            Fly = Config.Settings.Rage.Fly,
+            FlySpeed = Config.Settings.Rage.FlySpeed,
+            SpeedGlitch = Config.Settings.Rage.SpeedGlitch,
+            SpeedForce = Config.Settings.Rage.SpeedForce,
+        },
+        Player = {
+            ForceField = Config.Settings.Player.ForceField,
+            TargetESP = Config.Settings.Player.TargetESP,
+            AuraTrail = Config.Settings.Player.AuraTrail,
+            Hat = {
+                Enabled = HatVariables.enabled,
+                Style = HatVariables.style,
+                Rainbow = HatVariables.rainbow,
+                RainbowSpeed = HatVariables.rainbowSpeed,
+                Transparency = HatVariables.transparency,
+                Radius = HatVariables.radius,
+                Height = HatVariables.height,
+                Color = colorToTable(HatVariables.color),
+            },
+            Trail = {
+                Enabled = TrailVariables.enabled,
+                Gradient = TrailVariables.isGradient,
+                Lifetime = TrailVariables.lifetime,
+                Rainbow = TrailVariables.rainbow,
+                Color = colorToTable(TrailVariables.colorStatic),
+            },
+        },
+        Visuals = {
+            ESP = {
+                Murder = Config.Settings.ESP.Murder,
+                Sheriff = Config.Settings.ESP.Sheriff,
+                Innocent = Config.Settings.ESP.Innocent,
+                Hero = Config.Settings.ESP.Hero,
+                TargetESP = Config.Settings.ESP.TargetESP,
+                ArrowESP = Config.Settings.ESP.ArrowESP,
+            },
+            Colors = {
+                MurderESP = colorToTable(Config.Settings.Colors.MurderESP),
+                SheriffESP = colorToTable(Config.Settings.Colors.SheriffESP),
+                InnocentESP = colorToTable(Config.Settings.Colors.InnocentESP),
+                HeroESP = colorToTable(Config.Settings.Colors.HeroESP),
+                TargetESP = colorToTable(Config.Settings.Colors.TargetESP),
+                ArrowESP = colorToTable(Config.Settings.Colors.ArrowESP),
+            },
+            Skybox = {
+                Enabled = SkyboxVariables.customEnabled,
+                Current = SkyboxVariables.current,
+            },
+            Nebula = {
+                Enabled = NebulaVariables.enabled,
+                Color = colorToTable(NebulaVariables.themeColor),
+            },
+            ScreenStretch = {
+                Enabled = WorldVariables.screenEnabled,
+                Intensity = WorldVariables.screenIntensity,
+            },
+            Anime = AnimeVariables.enabled,
+            Snow = Snow.active,
+        },
+        Keybinds = {
+            ToggleGUI = Config.Settings.Keybinds.ToggleGUI.Name,
+            PanicKey = Config.Settings.Keybinds.PanicKey.Name,
+            Camlock = Config.Settings.Keybinds.Camlock.Name,
+            SilentAim = Config.Settings.Keybinds.SilentAim.Name,
+        },
+        Window = {
+            Transparency = GUI.Main.Window and GUI.Main.Window.BackgroundTransparency or 0.1,
+        },
+    }
+    return cfg
+end
+
+local function saveCurrentConfig()
+    local cfg = buildConfig()
+    return saveConfig(cfg)
+end
+
+local function loadAndApplyConfig()
+    local saved = loadConfig()
+    if saved then
+        local merged = migrateConfig(saved, DefaultConfig)
+        applySavedConfig(merged)
+        return true
+    end
+    return false
+end
+
+local function resetToDefaults()
+    applySavedConfig(DefaultConfig)
+    saveConfig(DefaultConfig)
+end
+
+local function exportConfig()
+    local cfg = buildConfig()
+    local json = game:GetService("HttpService"):JSONEncode(cfg)
+    if setclipboard then
+        setclipboard(json)
+        return true, "Config copied to clipboard!"
+    end
+    return false, "Clipboard not supported"
+end
+
+local function importConfig(json)
+    if not json or json == "" then return false, "Empty config" end
+    local success, data = pcall(function()
+        return game:GetService("HttpService"):JSONDecode(json)
+    end)
+    if not success then return false, "Invalid JSON" end
+    local merged = migrateConfig(data, DefaultConfig)
+    applySavedConfig(merged)
+    saveConfig(merged)
+    return true, "Config imported successfully!"
+end
+-- ==================== END CONFIG SYSTEM ====================
+
 local ColorPresets = {
     { Name = 'Cyan', Color = Color3.fromRGB(0, 255, 255) },
     { Name = 'Pink', Color = Color3.fromRGB(255, 105, 180) },
@@ -4128,6 +4623,43 @@ function GUI:CreateSettingsTab()
     self:CreateKeybindButton(keys, 'Silent Aim', Config.Settings.Keybinds.SilentAim, function(key)
         Config.Settings.Keybinds.SilentAim = key
     end)
+    local config = self:CreateSection('Config System')
+    self:CreateButton(config, 'Save Current Config', function()
+        local ok = saveCurrentConfig()
+        if ok then
+            print('[CandyZone] Config saved successfully!')
+        else
+            print('[CandyZone] Failed to save config (no writefile support)')
+        end
+    end)
+    self:CreateButton(config, 'Load Saved Config', function()
+        local ok = loadAndApplyConfig()
+        if ok then
+            print('[CandyZone] Config loaded successfully!')
+            self:LoadTab(self.Main.CurrentTab)
+        else
+            print('[CandyZone] No config found, using defaults')
+        end
+    end)
+    self:CreateButton(config, 'Reset to Defaults', function()
+        resetToDefaults()
+        print('[CandyZone] Config reset to defaults')
+        self:LoadTab(self.Main.CurrentTab)
+    end)
+    self:CreateButton(config, 'Export Config (Copy)', function()
+        local ok, msg = exportConfig()
+        print('[CandyZone] ' .. msg)
+    end)
+    self:CreateButton(config, 'Import Config (Paste)', function()
+        local clipboard = getclipboard and getclipboard() or ""
+        if clipboard and clipboard ~= "" then
+            local ok, msg = importConfig(clipboard)
+            print('[CandyZone] ' .. msg)
+            if ok then self:LoadTab(self.Main.CurrentTab) end
+        else
+            print('[CandyZone] Clipboard is empty')
+        end
+    end)
 end
 
 function GUI:CreateMiscTab()
@@ -4217,3 +4749,26 @@ print('\u{1f464} Developer: ' .. Config.Developer)
 print('\u{1f4ac} Discord: ' .. Config.Discord)
 print('\u{2328}\u{fe0f} Toggle: RightShift | Panic: End')
 print('\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}')
+
+
+-- Load saved config on startup
+task.wait(0.5)
+local loaded = loadAndApplyConfig()
+if loaded then
+    print('[CandyZone] Config loaded from CandyZone/Candycfg.json')
+    if GUI.Main.IsOpen then
+        GUI:LoadTab(GUI.Main.CurrentTab)
+    end
+else
+    print('[CandyZone] No config found, using defaults')
+    saveConfig(DefaultConfig)
+end
+
+-- Auto-save on panic key
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Config.Settings.Keybinds.PanicKey then
+        saveCurrentConfig()
+        print('[CandyZone] Config autosaved on panic')
+    end
+end)
