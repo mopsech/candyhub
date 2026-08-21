@@ -1739,67 +1739,386 @@ local function removeDraggableShootButton()
     end
 end
 
-local function getCoinsOnMap()
-    local coins = {}
-    for _, v in ipairs(workspace:GetDescendants()) do
-        if v:IsA('BasePart') and (v.Name == 'Coin_Highlight' or v.Name == 'CoinContainer' or v.Name == 'Coin') then
-            table.insert(coins, v)
-        end
-    end
-    return coins
+-- ==================== AUTOFARM ====================
+local FarmSettings = {
+    Enabled = false,
+    Mode = "Underground",
+    TweenSpeed = 25,
+    AutoReset = true,
+    AvoidMurder = true,
+    UndergroundOffset = 4,
+    MaxDistance = 600,
+    CoinLimit = 40,
+}
+
+local FarmState = {
+    isFarming = false,
+    isActivelyFlying = false,
+    currentTargetCoin = nil,
+    ignoredCoins = {},
+    currentTween = nil,
+}
+
+local function getCurrentCoins()
+    local ok, res = pcall(function()
+        local gui = LocalPlayer.PlayerGui:FindFirstChild("MainGUI")
+        if not gui then return 0 end
+        local gameGui = gui:FindFirstChild("Game")
+        if not gameGui then return 0 end
+        local coinBags = gameGui:FindFirstChild("CoinBags")
+        if not coinBags then return 0 end
+        local container = coinBags:FindFirstChild("Container")
+        if not container then return 0 end
+        local coin = container:FindFirstChild("Coin")
+        if not coin then return 0 end
+        local currencyFrame = coin:FindFirstChild("CurrencyFrame")
+        if not currencyFrame then return 0 end
+        local icon = currencyFrame:FindFirstChild("Icon")
+        if not icon then return 0 end
+        local coinsText = icon:FindFirstChild("Coins")
+        if not coinsText then return 0 end
+        return coinsText.Text
+    end)
+    return ok and (tonumber(res) or 0) or 0
 end
 
-task.spawn(function()
-    while true do
-        pcall(function()
-            if Config.Settings.Combat.AutoFarm then
-                local char = LocalPlayer.Character
-                local hrp = char and char:FindFirstChild('HumanoidRootPart')
-                if hrp then
-                    local coins = getCoinsOnMap()
-                    local nearestCoin, minDist = nil, math.huge
-                    for _, coin in ipairs(coins) do
-                        local dist = (coin.Position - hrp.Position).Magnitude
-                        if dist < minDist then
-                            minDist = dist
-                            nearestCoin = coin
-                        end
+local function isRoundOver()
+    local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not pGui then return false end
+    local victoryGui = pGui:FindFirstChild("Victory")
+    if victoryGui then
+        for _, child in pairs(victoryGui:GetChildren()) do
+            if child:IsA("GuiObject") and child.Visible then return true end
+        end
+    end
+    return false
+end
+
+local function isBagFull()
+    local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if pGui then
+        local mainGui = pGui:FindFirstChild("MainGUI")
+        if mainGui and mainGui:FindFirstChild("Lobby") and mainGui.Lobby:FindFirstChild("Dock") then
+            local coinBags = mainGui.Lobby.Dock:FindFirstChild("CoinBags")
+            if coinBags then
+                local notification = coinBags:FindFirstChild("FullBagNotification")
+                if notification and notification.Visible then return true end
+            end
+        end
+    end
+    return false
+end
+
+local function hasNearbyMurderer()
+    if not FarmSettings.AvoidMurder then return false end
+    local char = LocalPlayer.Character
+    if not char then return false end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local otherHRP = player.Character:FindFirstChild("HumanoidRootPart")
+            local backpack = player:FindFirstChild("Backpack")
+            if otherHRP and (otherHRP.Position - hrp.Position).Magnitude <= 10 then
+                if player.Character:FindFirstChild("Knife") then return true end
+                if backpack and backpack:FindFirstChild("Knife") then return true end
+            end
+        end
+    end
+    return false
+end
+
+local function getNearestCoin(torso)
+    local container = nil
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj.Name == "CoinContainer" then
+            container = obj
+            break
+        end
+    end
+    if not container then return nil end
+    local nearestCoin = nil
+    local minDist = math.huge
+    for _, coin in pairs(container:GetChildren()) do
+        if coin.Name == "Coin_Server" and coin:IsA("BasePart") and not FarmState.ignoredCoins[coin] then
+            local dist = (torso.Position - coin.Position).Magnitude
+            if dist < minDist and dist <= FarmSettings.MaxDistance then
+                minDist = dist
+                nearestCoin = coin
+            end
+        end
+    end
+    return nearestCoin
+end
+
+local function applyFlightPhysics(char)
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return CFrame.Angles(0,0,0) end
+    local bv = hrp:FindFirstChild("FarmBV")
+    if not bv then
+        bv = Instance.new("BodyVelocity")
+        bv.Name = "FarmBV"
+        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bv.Velocity = Vector3.new(0, 0, 0)
+        bv.Parent = hrp
+    end
+    local bg = hrp:FindFirstChild("FarmBG")
+    if not bg then
+        bg = Instance.new("BodyGyro")
+        bg.Name = "FarmBG"
+        bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        bg.P = 50000
+        bg.Parent = hrp
+        local _, rotY, _ = hrp.CFrame:ToOrientation()
+        bg.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, rotY, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+    end
+    return bg.CFrame.Rotation
+end
+
+local function removePhysics()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        if hrp:FindFirstChild("FarmBV") then hrp.FarmBV:Destroy() end
+        if hrp:FindFirstChild("FarmBG") then hrp.FarmBG:Destroy() end
+    end
+end
+
+local function setupNoclip()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local humanoid = char:FindFirstChild("Humanoid")
+    if humanoid then humanoid.PlatformStand = true end
+    for _, part in pairs(char:GetDescendants()) do
+        if part:IsA("BasePart") and part.CanCollide then
+            part.CanCollide = false
+        end
+    end
+end
+
+local function flyToPoint(targetPos, targetCoin, hrp, torso, lockedRotation)
+    local dist = (torso.Position - targetPos).Magnitude
+    local tweenInfo = TweenInfo.new(dist / FarmSettings.TweenSpeed, Enum.EasingStyle.Linear)
+    local targetCFrame = CFrame.new(targetPos) * lockedRotation
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
+    FarmState.currentTween = tween
+    local reached = false
+    tween:Play()
+    local connection
+    connection = RunService.Heartbeat:Connect(function()
+        if not FarmState.isFarming or not targetCoin or not targetCoin:IsDescendantOf(workspace) then
+            tween:Cancel()
+            if connection then connection:Disconnect() end
+            return
+        end
+        local currentDist = (torso.Position - targetPos).Magnitude
+        if firetouchinterest then
+            pcall(function()
+                firetouchinterest(torso, targetCoin, 0)
+                firetouchinterest(torso, targetCoin, 1)
+            end)
+        end
+        if currentDist <= 1.5 then
+            reached = true
+            tween:Cancel()
+            if connection then connection:Disconnect() end
+        end
+    end)
+    while connection and connection.Connected do
+        RunService.Heartbeat:Wait()
+    end
+    return reached
+end
+
+local function tweenToCoin(coin)
+    if not coin or not coin.Parent or not coin:FindFirstChild("TouchInterest") then
+        return false
+    end
+    local char = LocalPlayer.Character
+    if not char then return false end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return false end
+    local target = coin.Position + Vector3.new(0, 2, 0)
+    if (hrp.Position - target).Magnitude < 5 then
+        return true
+    end
+    if FarmState.currentTween then
+        pcall(function() FarmState.currentTween:Cancel() end)
+    end
+    FarmState.currentTween = TweenService:Create(hrp,
+        TweenInfo.new(
+            (hrp.Position - target).Magnitude / FarmSettings.TweenSpeed,
+            Enum.EasingStyle.Quad,
+            Enum.EasingDirection.Out
+        ),
+        {CFrame = CFrame.new(target)}
+    )
+    hum.Sit = true
+    FarmState.currentTween:Play()
+    local done = false
+    local c
+    c = FarmState.currentTween.Completed:Connect(function()
+        done = true
+        if c then c:Disconnect() end
+    end)
+    local t0 = tick()
+    while not done and FarmState.isFarming do
+        task.wait(0.1)
+        if not coin or not coin.Parent or not coin:FindFirstChild("TouchInterest") then
+            if FarmState.currentTween then
+                pcall(function() FarmState.currentTween:Cancel() end)
+            end
+            hum.Sit = false
+            return false
+        end
+        if tick() - t0 > 30 then
+            if FarmState.currentTween then
+                pcall(function() FarmState.currentTween:Cancel() end)
+            end
+            hum.Sit = false
+            return false
+        end
+    end
+    hum.Sit = false
+    return done
+end
+
+local function collectCoin(coin)
+    if not coin or not coin.Parent then return end
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    pcall(function()
+        firetouchinterest(hrp, coin, 0)
+        task.wait(0.05)
+        firetouchinterest(hrp, coin, 1)
+    end)
+end
+
+function StartFarming()
+    if FarmState.isFarming then return end
+    FarmState.isFarming = true
+    table.clear(FarmState.ignoredCoins)
+    task.spawn(function()
+        while FarmState.isFarming do
+            task.wait()
+            local success, err = pcall(function()
+                if hasNearbyMurderer() then
+                    FarmState.isActivelyFlying = false
+                    FarmState.currentTargetCoin = nil
+                    removePhysics()
+                    local char = LocalPlayer.Character
+                    if char then
+                        local hum = char:FindFirstChild("Humanoid")
+                        if hum then hum.Sit = false end
                     end
-                    if nearestCoin then
-                        local stepConn
-                        stepConn = RunService.Heartbeat:Connect(function(dt)
-                            if not Config.Settings.Combat.AutoFarm or not nearestCoin or not nearestCoin.Parent or not hrp.Parent then
-                                if stepConn then
-                                    stepConn:Disconnect()
-                                end
-                                return
-                            end
-                            local dir = (nearestCoin.Position - hrp.Position).Unit
-                            hrp.CFrame = hrp.CFrame + (dir * (22 * dt))
-                            if (nearestCoin.Position - hrp.Position).Magnitude < 4 then
-                                if stepConn then
-                                    stepConn:Disconnect()
-                                end
-                            end
-                        end)
-                        local timeout = 0
-                        while nearestCoin and nearestCoin.Parent and Config.Settings.Combat.AutoFarm and timeout < 100 do
-                            if (nearestCoin.Position - hrp.Position).Magnitude < 4 then
-                                break
-                            end
-                            task.wait(0.05)
-                            timeout = timeout + 1
-                        end
-                        if stepConn then
-                            stepConn:Disconnect()
-                        end
+                    task.wait(1)
+                    return
+                end
+                local char = LocalPlayer.Character
+                if not char then return end
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local torso = char:FindFirstChild("Torso") or char:FindFirstChild("LowerTorso") or char:FindFirstChild("HumanoidRootPart")
+                local humanoid = char:FindFirstChild("Humanoid")
+                if not hrp or not torso or not humanoid or humanoid.Health <= 0 then
+                    FarmState.isActivelyFlying = false
+                    FarmState.currentTargetCoin = nil
+                    removePhysics()
+                    task.wait(1)
+                    return
+                end
+                if isRoundOver() or isBagFull() then
+                    FarmState.isActivelyFlying = false
+                    FarmState.currentTargetCoin = nil
+                    removePhysics()
+                    if humanoid then humanoid.Sit = false end
+                    task.wait(1)
+                    return
+                end
+                if FarmSettings.AutoReset then
+                    local coins = getCurrentCoins()
+                    if coins >= FarmSettings.CoinLimit then
+                        humanoid.Health = 0
+                        task.wait(5)
+                        return
                     end
                 end
+                local targetCoin = getNearestCoin(torso)
+                if not targetCoin or not targetCoin:IsDescendantOf(workspace) then
+                    FarmState.isActivelyFlying = false
+                    FarmState.currentTargetCoin = nil
+                    removePhysics()
+                    if humanoid then humanoid.Sit = false end
+                    task.wait(0.5)
+                    return
+                end
+                FarmState.isActivelyFlying = true
+                FarmState.currentTargetCoin = targetCoin
+                local reachedTarget = false
+                if FarmSettings.Mode == "Underground" then
+                    setupNoclip()
+                    local lockedRotation = applyFlightPhysics(char)
+                    local targetPos = targetCoin.Position - Vector3.new(0, FarmSettings.UndergroundOffset, 0)
+                    reachedTarget = flyToPoint(targetPos, targetCoin, hrp, torso, lockedRotation)
+                elseif FarmSettings.Mode == "Sit" then
+                    reachedTarget = tweenToCoin(targetCoin)
+                    if reachedTarget and FarmState.isFarming and humanoid.Health > 0 then
+                        collectCoin(targetCoin)
+                    end
+                end
+                if reachedTarget and FarmState.isFarming and humanoid.Health > 0 then
+                    FarmState.ignoredCoins[targetCoin] = true
+                    task.delay(5, function()
+                        FarmState.ignoredCoins[targetCoin] = nil
+                    end)
+                    task.wait(0.2)
+                end
+                FarmState.currentTargetCoin = nil
+            end)
+            if not success then
+                FarmState.isActivelyFlying = false
+                FarmState.currentTargetCoin = nil
+                removePhysics()
+                task.wait(1)
             end
-        end)
-        task.wait(0.15)
+        end
+    end)
+end
+
+function StopFarming()
+    FarmState.isFarming = false
+    FarmState.isActivelyFlying = false
+    FarmState.currentTargetCoin = nil
+    if FarmState.currentTween then
+        pcall(function() FarmState.currentTween:Cancel() end)
+        FarmState.currentTween = nil
+    end
+    removePhysics()
+    local char = LocalPlayer.Character
+    if char then
+        local humanoid = char:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = false
+            humanoid.Sit = false
+        end
+    end
+end
+
+RunService.Stepped:Connect(function()
+    if not FarmState.isFarming or not FarmState.isActivelyFlying or FarmSettings.Mode ~= "Underground" then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+    local humanoid = char:FindFirstChild("Humanoid")
+    if humanoid then humanoid.PlatformStand = true end
+    for _, part in pairs(char:GetDescendants()) do
+        if part:IsA("BasePart") and part.CanCollide then
+            part.CanCollide = false
+        end
     end
 end)
+-- ==================== END AUTOFARM ====================
 
 local function executeBombJump()
     if Features.BombJumpOnCooldown then
@@ -3703,8 +4022,22 @@ function GUI:CreateCombatTab()
     end)
 
     local farmSec = self:CreateSection('AutoFarm & Bomb')
-    self:CreateToggle(farmSec, 'AutoFarm Coins', Config.Settings.Combat.AutoFarm, function(s)
-        Config.Settings.Combat.AutoFarm = s
+    self:CreateToggle(farmSec, 'AutoFarm Coins', FarmSettings.Enabled, function(s)
+        FarmSettings.Enabled = s
+        if s then StartFarming() else StopFarming() end
+    end)
+    self:CreateDropdown(farmSec, 'Farm Mode', {'Underground', 'Sit'}, FarmSettings.Mode, function(v)
+        FarmSettings.Mode = v
+        if FarmState.isFarming then StopFarming() StartFarming() end
+    end)
+    self:CreateSlider(farmSec, 'Tween Speed', 10, 100, FarmSettings.TweenSpeed, function(v)
+        FarmSettings.TweenSpeed = v
+    end)
+    self:CreateToggle(farmSec, 'Auto Reset', FarmSettings.AutoReset, function(s)
+        FarmSettings.AutoReset = s
+    end)
+    self:CreateToggle(farmSec, 'Avoid Murder', FarmSettings.AvoidMurder, function(s)
+        FarmSettings.AvoidMurder = s
     end)
     self:CreateButton(farmSec, 'Bomb Jump', function()
         executeBombJump()
