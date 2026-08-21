@@ -4875,6 +4875,7 @@ function GUI:CreateSettingsTab()
     self:CreateButton(config, '🔄 Refresh List', function()
         refreshConfigList()
     end)
+end
 
 function GUI:CreateMiscTab()
     local util = self:CreateSection('Utilities')
