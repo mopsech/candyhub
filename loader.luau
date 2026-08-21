@@ -3299,29 +3299,6 @@ function GUI:CreateDropdown(parent, text, options, defaultOption, callback)
 end
 
 function GUI:CreateVisualsTab()
-    local player = self:CreateSection('Player — ESP')
-    self:CreateToggle(player, 'Highlight Murder', Config.Settings.ESP.Murder, function(s)
-        Config.Settings.ESP.Murder = s
-    end)
-    self:CreateToggle(player, 'Highlight Sheriff', Config.Settings.ESP.Sheriff, function(s)
-        Config.Settings.ESP.Sheriff = s
-    end)
-    self:CreateToggle(player, 'Highlight Hero', Config.Settings.ESP.Hero, function(s)
-        Config.Settings.ESP.Hero = s
-    end)
-    self:CreateToggle(player, 'Highlight Innocent', Config.Settings.ESP.Innocent, function(s)
-        Config.Settings.ESP.Innocent = s
-    end)
-    self:CreateColorPicker(player, 'Murder ESP Color', Config.Settings.Colors.MurderESP, function(c)
-        Config.Settings.Colors.MurderESP = c
-    end)
-    self:CreateColorPicker(player, 'Sheriff ESP Color', Config.Settings.Colors.SheriffESP, function(c)
-        Config.Settings.Colors.SheriffESP = c
-    end)
-    self:CreateColorPicker(player, 'Innocent ESP Color', Config.Settings.Colors.InnocentESP, function(c)
-        Config.Settings.Colors.InnocentESP = c
-    end)
-
     local targetEsp = self:CreateSection('Player — Target ESP')
     self:CreateToggle(targetEsp, 'Enable Target ESP', Config.Settings.ESP.TargetESP, function(s)
         TargetESPVariables.enabled = s
