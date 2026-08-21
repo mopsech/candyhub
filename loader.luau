@@ -112,13 +112,10 @@ local Config = {
         },
         Combat = {
             Camlock = false,
-            SilentAim = false,
             AutoShoot = false,
             CamlockFOV = 120,
             CamlockPredict = 100,
             CamlockSmooth = 50,
-            SilentFOV = 120,
-            SilentPredict = 100,
             VisibleCheck = true,
             AutoKillAll = false,
             AutoFarm = false,
@@ -245,13 +242,10 @@ local DefaultConfig = {
     },
     Combat = {
         Camlock = false,
-        SilentAim = false,
         AutoShoot = false,
         CamlockFOV = 120,
         CamlockPredict = 100,
         CamlockSmooth = 50,
-        SilentFOV = 120,
-        SilentPredict = 100,
         VisibleCheck = true,
         AutoKillAll = false,
         AntiFling = false,
@@ -4551,17 +4545,6 @@ function GUI:CreateCombatTab()
     end)
     self:CreateSlider(camlock, 'Smoothness', 0, 100, Config.Settings.Combat.CamlockSmooth, function(v)
         Config.Settings.Combat.CamlockSmooth = v
-    end)
-
-    local silent = self:CreateSection('Silent Aim')
-    self:CreateToggle(silent, 'Silent Aim', Config.Settings.Combat.SilentAim, function(s)
-        Config.Settings.Combat.SilentAim = s
-    end)
-    self:CreateSlider(silent, 'FOV', 0, 360, Config.Settings.Combat.SilentFOV, function(v)
-        Config.Settings.Combat.SilentFOV = v
-    end)
-    self:CreateSlider(silent, 'Predict', 0, 200, Config.Settings.Combat.SilentPredict, function(v)
-        Config.Settings.Combat.SilentPredict = v
     end)
 
     local shootSec = self:CreateSection('Shoot & Kill')
