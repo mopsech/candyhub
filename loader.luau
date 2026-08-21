@@ -638,6 +638,70 @@ local function importConfig(json)
     saveConfig(merged)
     return true, "Config imported successfully!"
 end
+
+local function getConfigList()
+    if not isfolder then return {} end
+    if not isfolder(ConfigFolder) then return {} end
+    local files = {}
+    for _, file in ipairs(listfiles(ConfigFolder)) do
+        if file:match("%.json$") then
+            local name = file:match("([^/\\]+)%.json$")
+            if name then
+                table.insert(files, name)
+            end
+        end
+    end
+    return files
+end
+
+local function loadConfigByName(name)
+    if not name or name == "" then return false end
+    local path = ConfigFolder .. "/" .. name .. ".json"
+    if not isfile(path) then return false end
+    local success, data = pcall(function()
+        return readfile(path)
+    end)
+    if success and data then
+        local success2, parsed = pcall(function()
+            return game:GetService("HttpService"):JSONDecode(data)
+        end)
+        if success2 then
+            applySavedConfig(parsed)
+            return true
+        end
+    end
+    return false
+end
+
+local function saveConfigAs(name)
+    if not name or name == "" then return false end
+    local cfg = buildConfig()
+    local path = ConfigFolder .. "/" .. name .. ".json"
+    ensureFolder()
+    local success, json = pcall(function()
+        return game:GetService("HttpService"):JSONEncode(cfg)
+    end)
+    if success and json then
+        pcall(function()
+            writefile(path, json)
+        end)
+        return true
+    end
+    return false
+end
+
+local function deleteConfig(name)
+    if not name or name == "" then return false end
+    local path = ConfigFolder .. "/" .. name .. ".json"
+    if isfile(path) then
+        pcall(function()
+            delfile(path)
+        end)
+        return true
+    end
+    return false
+end
+
 -- ==================== END CONFIG SYSTEM ====================
 
 local ColorPresets = {
@@ -4623,7 +4687,12 @@ function GUI:CreateSettingsTab()
     self:CreateKeybindButton(keys, 'Silent Aim', Config.Settings.Keybinds.SilentAim, function(key)
         Config.Settings.Keybinds.SilentAim = key
     end)
-    local config = self:CreateSection('Config System')
+      local config = self:CreateSection('Config System')
+    
+    -- Текущий конфиг
+    self:CreateLabel(config, 'Current Config', 'Default')
+    
+    -- Сохранение с именем
     self:CreateButton(config, 'Save Current Config', function()
         local ok = saveCurrentConfig()
         if ok then
@@ -4632,6 +4701,8 @@ function GUI:CreateSettingsTab()
             print('[CandyZone] Failed to save config (no writefile support)')
         end
     end)
+    
+    -- Загрузка
     self:CreateButton(config, 'Load Saved Config', function()
         local ok = loadAndApplyConfig()
         if ok then
@@ -4641,26 +4712,169 @@ function GUI:CreateSettingsTab()
             print('[CandyZone] No config found, using defaults')
         end
     end)
+    
+    -- Сброс
     self:CreateButton(config, 'Reset to Defaults', function()
         resetToDefaults()
         print('[CandyZone] Config reset to defaults')
         self:LoadTab(self.Main.CurrentTab)
     end)
-    self:CreateButton(config, 'Export Config (Copy)', function()
-        local ok, msg = exportConfig()
-        print('[CandyZone] ' .. msg)
-    end)
-    self:CreateButton(config, 'Import Config (Paste)', function()
-        local clipboard = getclipboard and getclipboard() or ""
-        if clipboard and clipboard ~= "" then
-            local ok, msg = importConfig(clipboard)
-            print('[CandyZone] ' .. msg)
-            if ok then self:LoadTab(self.Main.CurrentTab) end
-        else
-            print('[CandyZone] Clipboard is empty')
+    
+    self:CreateDivider(config)
+    
+    -- Новый блок с сохранением/загрузкой именованных конфигов
+    self:CreateLabel(config, '--- Named Configs ---', '')
+    
+    -- Поле для ввода имени
+    local nameInput = Instance.new("TextBox")
+    nameInput.Size = UDim2.new(1, 0, 0, 28)
+    nameInput.Position = UDim2.new(0, 0, 0, 0)
+    nameInput.BackgroundColor3 = Config.Color.Background.Input
+    nameInput.TextColor3 = Config.Color.Text.Primary
+    nameInput.PlaceholderColor3 = Config.Color.Text.Disabled
+    nameInput.Font = Enum.Font.Gotham
+    nameInput.TextSize = 12
+    nameInput.PlaceholderText = "Enter config name..."
+    nameInput.Text = ""
+    nameInput.Parent = config.Container
+    Util:Corner(nameInput, 6)
+    
+    -- Кнопки для работы с именем
+    local btnFrame = Instance.new("Frame")
+    btnFrame.Size = UDim2.new(1, 0, 0, 32)
+    btnFrame.BackgroundTransparency = 1
+    btnFrame.Parent = config.Container
+    
+    local saveBtn = Instance.new("TextButton")
+    saveBtn.Size = UDim2.new(0.48, 0, 1, 0)
+    saveBtn.Position = UDim2.new(0, 0, 0, 0)
+    saveBtn.BackgroundColor3 = Config.Color.State.Success
+    saveBtn.Text = "💾 Save As"
+    saveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    saveBtn.Font = Enum.Font.GothamBold
+    saveBtn.TextSize = 11
+    saveBtn.Parent = btnFrame
+    Util:Corner(saveBtn, 6)
+    
+    local loadBtn = Instance.new("TextButton")
+    loadBtn.Size = UDim2.new(0.48, 0, 1, 0)
+    loadBtn.Position = UDim2.new(0.52, 0, 0, 0)
+    loadBtn.BackgroundColor3 = Config.Color.State.Info
+    loadBtn.Text = "📂 Load"
+    loadBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    loadBtn.Font = Enum.Font.GothamBold
+    loadBtn.TextSize = 11
+    loadBtn.Parent = btnFrame
+    Util:Corner(loadBtn, 6)
+    
+    local deleteBtn = Instance.new("TextButton")
+    deleteBtn.Size = UDim2.new(0.48, 0, 1, 0)
+    deleteBtn.Position = UDim2.new(0, 0, 0, 0)
+    deleteBtn.BackgroundColor3 = Config.Color.State.Error
+    deleteBtn.Text = "🗑️ Delete"
+    deleteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    deleteBtn.Font = Enum.Font.GothamBold
+    deleteBtn.TextSize = 11
+    deleteBtn.Parent = btnFrame
+    Util:Corner(deleteBtn, 6)
+    deleteBtn.Visible = false
+    
+    saveBtn.MouseButton1Click:Connect(function()
+        local name = nameInput.Text:gsub("%s+", "_")
+        if name and name ~= "" then
+            local ok = saveConfigAs(name)
+            if ok then
+                print('[CandyZone] Config saved as: ' .. name)
+                loadBtn.Visible = true
+                deleteBtn.Visible = true
+                self:LoadTab(self.Main.CurrentTab)
+            end
         end
     end)
-end
+    
+    loadBtn.MouseButton1Click:Connect(function()
+        local name = nameInput.Text:gsub("%s+", "_")
+        if name and name ~= "" then
+            local ok = loadConfigByName(name)
+            if ok then
+                print('[CandyZone] Config loaded: ' .. name)
+                self:LoadTab(self.Main.CurrentTab)
+            end
+        end
+    end)
+    
+    deleteBtn.MouseButton1Click:Connect(function()
+        local name = nameInput.Text:gsub("%s+", "_")
+        if name and name ~= "" then
+            local ok = deleteConfig(name)
+            if ok then
+                print('[CandyZone] Config deleted: ' .. name)
+                nameInput.Text = ""
+                loadBtn.Visible = false
+                deleteBtn.Visible = false
+                self:LoadTab(self.Main.CurrentTab)
+            end
+        end
+    end)
+    
+    -- Список сохраненных конфигов
+    local listFrame = Instance.new("ScrollingFrame")
+    listFrame.Size = UDim2.new(1, 0, 0, 80)
+    listFrame.BackgroundColor3 = Config.Color.Background.Input
+    listFrame.BackgroundTransparency = 0.3
+    listFrame.BorderSizePixel = 0
+    listFrame.ScrollBarThickness = 3
+    listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    listFrame.Parent = config.Container
+    Util:Corner(listFrame, 6)
+    
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.Padding = UDim.new(0, 2)
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    listLayout.Parent = listFrame
+    
+    listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        listFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
+    end)
+    
+    local function refreshConfigList()
+        for _, child in ipairs(listFrame:GetChildren()) do
+            if child:IsA("TextButton") then
+                child:Destroy()
+            end
+        end
+        local files = getConfigList()
+        for _, file in ipairs(files) do
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, 0, 0, 24)
+            btn.BackgroundColor3 = Config.Color.Background.Secondary
+            btn.BackgroundTransparency = 0.2
+            btn.Text = "📄 " .. file
+            btn.TextColor3 = Config.Color.Text.Primary
+            btn.TextSize = 11
+            btn.Font = Enum.Font.Gotham
+            btn.TextXAlignment = Enum.TextXAlignment.Left
+            btn.Parent = listFrame
+            Util:Corner(btn, 4)
+            
+            btn.MouseButton1Click:Connect(function()
+                nameInput.Text = file
+                loadBtn.Visible = true
+                deleteBtn.Visible = true
+                local ok = loadConfigByName(file)
+                if ok then
+                    print('[CandyZone] Config loaded: ' .. file)
+                    self:LoadTab(self.Main.CurrentTab)
+                end
+            end)
+        end
+    end
+    
+    refreshConfigList()
+    
+    self:CreateButton(config, '🔄 Refresh List', function()
+        refreshConfigList()
+    end)
 
 function GUI:CreateMiscTab()
     local util = self:CreateSection('Utilities')
