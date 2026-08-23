@@ -939,20 +939,6 @@ local Features = {
     BombJumpOnCooldown = false,
 }
 
--- ==================== GUN BEAM VARIABLES ====================
-local GunBeamSettings = {
-    enabled = false,
-    beamType = "Neon Fat",  -- Default, Neon Fat, Nuke, Zigzag Light, Orbital Strike, Black Hole, Rainbow RGB
-    beamColor = Color3.fromRGB(0, 240, 255),
-    thickness = 1.5,
-    lifetime = 0.25,
-}
-
--- ==================== WALL BANG VARIABLES ====================
-local WallBangSettings = {
-    enabled = false,
-}
-
 local ESP = {
     Enabled = false,
     Connection = nil,
@@ -1383,6 +1369,100 @@ function ToggleTracers(state)
 end
 -- ==================== END TRACER ESP ====================
 
+-- ==================== GUN BEAM ====================
+local GunBeamSettings = {
+    enabled = false,
+    beamType = "Neon Fat",
+    beamColor = Color3.fromRGB(0, 240, 255),
+    thickness = 1.5,
+    lifetime = 0.25,
+}
+
+local function CreateBeam(p0, p1, color, thickness, lifetime)
+    if not p0 or not p1 then return end
+    local dist = (p1 - p0).Magnitude
+    if dist < 0.5 then return end
+    
+    local beam = Instance.new("Part")
+    beam.Anchored = true
+    beam.CanCollide = false
+    beam.Material = Enum.Material.Neon
+    beam.Color = color
+    beam.Shape = Enum.PartType.Cylinder
+    beam.Size = Vector3.new(dist, thickness or 1.5, thickness or 1.5)
+    beam.CFrame = CFrame.lookAt(p0, p1) * CFrame.new(0, 0, -dist / 2) * CFrame.Angles(0, math.rad(90), 0)
+    beam.Parent = workspace.Terrain
+    
+    TweenService:Create(beam, TweenInfo.new(lifetime or 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = Vector3.new(dist, 0, 0),
+        Transparency = 1
+    }):Play()
+    
+    task.delay((lifetime or 0.25) + 0.05, function()
+        if beam then beam:Destroy() end
+    end)
+    
+    return beam
+end
+
+local function GunBeam_Handle(beam)
+    if not beam or not beam:IsA("Beam") then return end
+    if not GunBeamSettings.enabled then return end
+    
+    local p0, p1
+    if beam.Attachment0 and beam.Attachment1 then
+        p0 = beam.Attachment0.WorldPosition
+        p1 = beam.Attachment1.WorldPosition
+    end
+    if not p0 or not p1 then return end
+    
+    local color = GunBeamSettings.beamColor
+    local thick = GunBeamSettings.thickness or 1.5
+    local lifetime = GunBeamSettings.lifetime or 0.25
+    
+    if GunBeamSettings.beamType == "Neon Fat" then
+        beam.Width0 = 1.8
+        beam.Width1 = 1.2
+        beam.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)),
+            ColorSequenceKeypoint.new(0.2, color),
+            ColorSequenceKeypoint.new(1, color)
+        })
+        CreateBeam(p0, p1, color, 1.0, lifetime)
+    else
+        -- Default
+        beam.Width0 = 0.5
+        beam.Width1 = 0.3
+        beam.Color = ColorSequence.new(color)
+    end
+end
+
+workspace.DescendantAdded:Connect(function(desc)
+    if desc:IsA("Beam") and GunBeamSettings.enabled then
+        task.wait(0.02)
+        pcall(GunBeam_Handle, desc)
+    end
+end)
+
+for _, beam in ipairs(workspace:GetDescendants()) do
+    if beam:IsA("Beam") and GunBeamSettings.enabled then
+        task.spawn(function() pcall(GunBeam_Handle, beam) end)
+    end
+end
+
+function ToggleGunBeam(state)
+    GunBeamSettings.enabled = state
+end
+
+function SetGunBeamType(type)
+    GunBeamSettings.beamType = type
+end
+
+function SetGunBeamColor(color)
+    GunBeamSettings.beamColor = color
+end
+-- ==================== END GUN BEAM ====================
+
 -- ==================== HITSOUND SYSTEM ====================
 local HitsoundData = {
     enabled = false,
@@ -1624,6 +1704,220 @@ task.spawn(function()
     end
 end)
 -- ==================== END GRAB GUN ====================
+
+-- ==================== WALL BANG ====================
+local WallBangSettings = {
+    enabled = false,
+}
+
+local PlayerRoles = {}
+local lastVel = {}
+
+local function GetRole(plr)
+    if PlayerRoles[plr.Name] then return PlayerRoles[plr.Name] end
+    local char = plr.Character
+    local bp = plr:FindFirstChild("Backpack")
+    if char and char:FindFirstChild("Knife") then return "Murderer" end
+    if bp and bp:FindFirstChild("Knife") then return "Murderer" end
+    if char and char:FindFirstChild("Gun") then return "Sheriff" end
+    if bp and bp:FindFirstChild("Gun") then return "Sheriff" end
+    return nil
+end
+
+local function FindMurderer()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local role = GetRole(plr)
+            if role == "Murderer" then return plr end
+            local char = plr.Character
+            local bp = plr:FindFirstChild("Backpack")
+            if (char and char:FindFirstChild("Knife")) or (bp and bp:FindFirstChild("Knife")) then
+                return plr
+            end
+        end
+    end
+    return nil
+end
+
+local function getpredictedpos(targetPart)
+    if not targetPart or not targetPart:IsA("BasePart") then
+        return targetPart and targetPart.Position or Vector3.zero
+    end
+    local target = targetPart.Parent
+    local hum = target and target:FindFirstChildOfClass("Humanoid")
+    local state = hum and hum:GetState() or Enum.HumanoidStateType.None
+    local myChar = LocalPlayer.Character
+    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myRoot then
+        return targetPart.Position
+    end
+    local distance = (myRoot.Position - targetPart.Position).Magnitude
+    local ping = LocalPlayer:GetNetworkPing() or 0
+    local predTime = math.clamp(distance / math.max(myRoot.AssemblyLinearVelocity.Magnitude + 800, 800) * 0.6 + ping, 0.005, 0.12)
+    local vel = targetPart.AssemblyLinearVelocity
+    if not lastVel[targetPart] then
+        lastVel[targetPart] = vel
+    end
+    local accel = (vel - lastVel[targetPart]).Magnitude
+    local smoothFactor = accel > 50 and 0.8 or 0.35
+    local smoothedVel = lastVel[targetPart]:Lerp(vel, smoothFactor)
+    lastVel[targetPart] = smoothedVel
+    local predicted = targetPart.Position + smoothedVel * predTime
+    if state == Enum.HumanoidStateType.Jumping or state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.GettingUp then
+        predicted = predicted + Vector3.new(0, workspace.Gravity * predTime * predTime * 0.12, 0)
+        if smoothedVel.Y > 0 then
+            predicted = predicted + Vector3.new(0, smoothedVel.Y * predTime * 0.08, 0)
+        end
+    end
+    local yDiff = predicted.Y - targetPart.Position.Y
+    local clampedYDiff = math.clamp(yDiff, -distance * 0.03, distance * 0.05)
+    if state == Enum.HumanoidStateType.Jumping or state == Enum.HumanoidStateType.Freefall then
+        clampedYDiff = math.clamp(yDiff, -distance * 0.08, distance * 0.12)
+    end
+    local head = target and target:FindFirstChild("Head")
+    local root = target and target:FindFirstChild("HumanoidRootPart")
+    local hitboxHeight = 3
+    if head and root then
+        hitboxHeight = math.abs(head.Position.Y - root.Position.Y) + 1
+    end
+    local finalPos = Vector3.new(predicted.X, targetPart.Position.Y + clampedYDiff + hitboxHeight * 0.25, predicted.Z)
+    local maxOffset = math.max(distance * 0.25, 8)
+    local offset = finalPos - targetPart.Position
+    if maxOffset < offset.Magnitude then
+        finalPos = targetPart.Position + offset.Unit * maxOffset
+    end
+    return finalPos
+end
+
+local function FindGun()
+    local char = LocalPlayer.Character
+    if char then
+        for _, t in ipairs(char:GetChildren()) do
+            if t:IsA("Tool") and (t.Name:lower():find("gun") or t.Name:lower():find("revolver") or t.Name:lower():find("pistol")) then
+                return t
+            end
+        end
+    end
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then
+        for _, t in ipairs(bp:GetChildren()) do
+            if t:IsA("Tool") and (t.Name:lower():find("gun") or t.Name:lower():find("revolver") or t.Name:lower():find("pistol")) then
+                return t
+            end
+        end
+    end
+    return nil
+end
+
+local function UpdateGun()
+    local gunTool = FindGun()
+    if gunTool then
+        local shootRemote = gunTool:FindFirstChild("Shoot")
+        if shootRemote and shootRemote:IsA("RemoteEvent") then
+            return gunTool, shootRemote
+        end
+    end
+    return nil, nil
+end
+
+function WallBangShoot()
+    if not WallBangSettings.enabled then return false end
+    
+    local gunTool, shootRemote = UpdateGun()
+    if not gunTool or not shootRemote then return false end
+    
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not char or not root then return false end
+    
+    if gunTool.Parent == LocalPlayer:FindFirstChild("Backpack") then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum:EquipTool(gunTool)
+            task.wait(0.05)
+        end
+        shootRemote = gunTool:FindFirstChild("Shoot")
+        if not shootRemote then return false end
+    end
+    
+    local murderer = FindMurderer()
+    if not murderer or not murderer.Character then return false end
+    
+    local mRoot = murderer.Character:FindFirstChild("HumanoidRootPart")
+    if not mRoot then return false end
+    
+    local mHum = murderer.Character:FindFirstChildOfClass("Humanoid")
+    if not mHum or mHum.Health <= 0 then return false end
+    
+    local targetPos = getpredictedpos(mRoot)
+    
+    local success = false
+    pcall(function()
+        local cf = CFrame.new(targetPos)
+        shootRemote:FireServer(cf, CFrame.new(root.Position))
+        success = true
+    end)
+    
+    return success
+end
+
+-- Переопределяем shootMurdererDirect для поддержки Wall Bang
+local oldShootMurderer = shootMurdererDirect
+shootMurdererDirect = function()
+    if WallBangSettings.enabled then
+        WallBangShoot()
+    else
+        oldShootMurderer()
+    end
+end
+
+-- Экранная кнопка для Wall Bang
+local WallBangButtonGui = nil
+
+function CreateWallBangButton()
+    if WallBangButtonGui then WallBangButtonGui:Destroy() end
+    
+    local sg = Instance.new("ScreenGui")
+    sg.Name = "WallBangButton"
+    sg.ResetOnSpawn = false
+    sg.IgnoreGuiInset = true
+    sg.DisplayOrder = 999999
+    if gethui then
+        sg.Parent = gethui()
+    else
+        sg.Parent = CoreGui
+    end
+    WallBangButtonGui = sg
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 70, 0, 70)
+    btn.Position = UDim2.new(0.7, 0, 0.7, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    btn.BackgroundTransparency = 0.1
+    btn.Text = "WB"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 20
+    btn.Font = Enum.Font.GothamBold
+    btn.BorderSizePixel = 0
+    btn.Parent = sg
+    Util:Corner(btn, 999)
+    Util:Stroke(btn, 2, Color3.fromRGB(255, 255, 255), 0.3)
+    
+    btn.MouseButton1Click:Connect(function()
+        WallBangShoot()
+    end)
+    btn.TouchTap:Connect(function()
+        WallBangShoot()
+    end)
+end
+
+function RemoveWallBangButton()
+    if WallBangButtonGui then
+        WallBangButtonGui:Destroy()
+        WallBangButtonGui = nil
+    end
+end
+-- ==================== END WALL BANG ====================
 
 local function addConn(conn)
     table.insert(Features.Connections, conn)
@@ -2404,195 +2698,19 @@ local function createDraggableShootButton()
         task.delay(0.4, function()
             ripple:Destroy()
         end)
-        shootMurdererDirect()  -- <-- ВОТ ЭТОТ ВЫЗОВ ДОЛЖЕН БЫТЬ!
+        shootMurdererDirect()
     end)
     Features.ShootButton = btn
 end
 
--- ==================== GUN BEAM FUNCTIONS ====================
-local function gbNeonLaser(p0, p1, thickness, customColor)
-    local distance = (p1 - p0).Magnitude
-    if distance < 1 then return end
-    local laser = Instance.new("Part")
-    laser.Anchored = true
-    laser.CanCollide = false
-    laser.Material = Enum.Material.Neon
-    laser.Color = customColor or GunBeamSettings.beamColor
-    laser.Shape = Enum.PartType.Cylinder
-    laser.Size = Vector3.new(distance, thickness or 0.5, thickness or 0.5)
-    laser.CFrame = CFrame.lookAt(p0, p1) * CFrame.new(0, 0, -distance / 2) * CFrame.Angles(0, math.rad(90), 0)
-    laser.Parent = workspace
-    TweenService:Create(laser, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        Size = Vector3.new(distance, 0, 0),
-        Transparency = 1
-    }):Play()
-    task.delay(0.25, function() laser:Destroy() end)
-end
-
-local function gbNukeExplosion(pos, dir, color)
-    local sphere = Instance.new("Part")
-    sphere.Shape = Enum.PartType.Ball
-    sphere.Material = Enum.Material.Neon
-    sphere.Color = color
-    sphere.Size = Vector3.new(0.4, 0.4, 0.4)
-    sphere.Position = pos
-    sphere.Anchored = true
-    sphere.CanCollide = false
-    sphere.Parent = workspace
-
-    local ring = Instance.new("Part")
-    ring.Shape = Enum.PartType.Cylinder
-    ring.Material = Enum.Material.Neon
-    ring.Color = Color3.fromRGB(255, 255, 255)
-    ring.Size = Vector3.new(0.1, 0.4, 0.4)
-    ring.CFrame = CFrame.lookAt(pos, pos + dir) * CFrame.Angles(0, math.rad(90), 0)
-    ring.Anchored = true
-    ring.CanCollide = false
-    ring.Parent = workspace
-
-    local light = Instance.new("PointLight")
-    light.Color = color
-    light.Range = 16
-    light.Brightness = 3.5
-    light.Parent = sphere
-
-    local duration = 1.1
-    local twInfo = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-
-    TweenService:Create(sphere, twInfo, {Size = Vector3.new(8, 8, 8), Transparency = 1}):Play()
-    TweenService:Create(ring, twInfo, {Size = Vector3.new(0.1, 15, 15), Transparency = 1}):Play()
-    TweenService:Create(light, twInfo, {Brightness = 0, Range = 0}):Play()
-
-    task.delay(duration + 0.1, function() sphere:Destroy(); ring:Destroy() end)
-end
-
-local function gbZigzagLightning(p0, p1, color)
-    local dist = (p1 - p0).Magnitude
-    local segments = math.clamp(math.floor(dist / 6), 4, 12)
-    local lastPos = p0
-
-    for i = 1, segments do
-        local progress = i / segments
-        local nextPos = p0:Lerp(p1, progress)
-        if i < segments then
-            nextPos = nextPos + Vector3.new(math.random(-2, 2), math.random(-2, 2), math.random(-2, 2))
-        end
-
-        local segDist = (nextPos - lastPos).Magnitude
-        local seg = Instance.new("Part")
-        seg.Material = Enum.Material.Neon
-        seg.Color = color
-        seg.Shape = Enum.PartType.Cylinder
-        seg.Size = Vector3.new(segDist, 0.4, 0.4)
-        seg.CFrame = CFrame.lookAt(lastPos, nextPos) * CFrame.new(0, 0, -segDist / 2) * CFrame.Angles(0, math.rad(90), 0)
-        seg.Anchored = true
-        seg.CanCollide = false
-        seg.Parent = workspace
-
-        TweenService:Create(seg, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Size = Vector3.new(segDist, 0, 0),
-            Transparency = 1
-        }):Play()
-
-        task.delay(0.28, function() seg:Destroy() end)
-        lastPos = nextPos
+local function removeDraggableShootButton()
+    if Features.ShootGui then
+        Features.ShootGui:Destroy()
+        Features.ShootGui = nil
+        Features.ShootButton = nil
     end
 end
 
-local function gbOrbitalStrike(targetPos, color)
-    local skyPos = targetPos + Vector3.new(0, 100, 0)
-    local beam = Instance.new("Part")
-    beam.Shape = Enum.PartType.Cylinder
-    beam.Material = Enum.Material.Neon
-    beam.Color = color
-    beam.Size = Vector3.new(100, 2.5, 2.5)
-    beam.CFrame = CFrame.lookAt(skyPos, targetPos) * CFrame.new(0, 0, -50) * CFrame.Angles(0, math.rad(90), 0)
-    beam.Anchored = true
-    beam.CanCollide = false
-    beam.Parent = workspace
-
-    local light = Instance.new("PointLight")
-    light.Color = color
-    light.Range = 25
-    light.Brightness = 5
-    light.Parent = beam
-
-    local twInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    TweenService:Create(beam, twInfo, {Size = Vector3.new(100, 0, 0), Transparency = 1}):Play()
-    TweenService:Create(light, twInfo, {Brightness = 0, Range = 0}):Play()
-
-    task.delay(0.42, function() beam:Destroy() end)
-end
-
-local function gbBlackHole(pos, dir)
-    local core = Instance.new("Part")
-    core.Shape = Enum.PartType.Ball
-    core.Material = Enum.Material.SmoothPlastic
-    core.Color = Color3.fromRGB(10, 10, 15)
-    core.Size = Vector3.new(0.2, 0.2, 0.2)
-    core.Position = pos
-    core.Anchored = true
-    core.CanCollide = false
-    core.Parent = workspace
-    
-    local aura = Instance.new("Part")
-    aura.Shape = Enum.PartType.Ball
-    aura.Material = Enum.Material.Neon
-    aura.Color = GunBeamSettings.beamColor
-    aura.Size = Vector3.new(0.3, 0.3, 0.3)
-    aura.Position = pos
-    aura.Anchored = true
-    aura.CanCollide = false
-    aura.Parent = workspace
-    
-    local light = Instance.new("PointLight")
-    light.Color = GunBeamSettings.beamColor
-    light.Range = 14
-    light.Brightness = 3
-    light.Parent = aura
-
-    local twExpand = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-    local twImplode = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-
-    TweenService:Create(core, twExpand, {Size = Vector3.new(4, 4, 4)}):Play()
-    TweenService:Create(aura, twExpand, {Size = Vector3.new(5.5, 5.5, 5.5)}):Play()
-
-    task.delay(0.3, function()
-        TweenService:Create(core, twImplode, {Size = Vector3.new(0, 0, 0), Transparency = 1}):Play()
-        TweenService:Create(aura, twImplode, {Size = Vector3.new(0, 0, 0), Transparency = 1}):Play()
-        TweenService:Create(light, twImplode, {Brightness = 0, Range = 0}):Play()
-        task.delay(0.52, function() core:Destroy(); aura:Destroy() end)
-    end)
-end
-
-local function CreateGunBeam(origin, target)
-    if not GunBeamSettings.enabled then return end
-    
-    local p0 = origin
-    local p1 = target
-    local dir = (p1 - p0).Unit
-    
-    if GunBeamSettings.beamType == "Default" then
-        gbNeonLaser(p0, p1, GunBeamSettings.thickness)
-    elseif GunBeamSettings.beamType == "Neon Fat" then
-        gbNeonLaser(p0, p1, GunBeamSettings.thickness)
-    elseif GunBeamSettings.beamType == "Nuke" then
-        gbNeonLaser(p0, p1, GunBeamSettings.thickness)
-        gbNukeExplosion(p1, dir, GunBeamSettings.beamColor)
-    elseif GunBeamSettings.beamType == "Zigzag Light" then
-        gbZigzagLightning(p0, p1, GunBeamSettings.beamColor)
-    elseif GunBeamSettings.beamType == "Orbital Strike" then
-        gbNeonLaser(p0, p1, GunBeamSettings.thickness)
-        gbOrbitalStrike(p1, GunBeamSettings.beamColor)
-    elseif GunBeamSettings.beamType == "Black Hole" then
-        gbNeonLaser(p0, p1, GunBeamSettings.thickness)
-        gbBlackHole(p1, dir)
-    elseif GunBeamSettings.beamType == "Rainbow RGB" then
-        local rainbowColor = Color3.fromHSV((tick() * 0.5) % 1, 1, 1)
-        gbNeonLaser(p0, p1, GunBeamSettings.thickness, rainbowColor)
-    end
-end
--- ==================== END GUN BEAM FUNCTIONS ====================
 -- ==================== AUTOFARM ====================
 local FarmSettings = {
     Enabled = false,
@@ -4495,6 +4613,399 @@ function GUI:CreateDropdown(parent, text, options, defaultOption, callback)
     return dropdown
 end
 
+function GUI:CreateVisualsTab()
+    local targetEsp = self:CreateSection('Player — Target ESP')
+    self:CreateToggle(targetEsp, 'Enable Target ESP', Config.Settings.ESP.TargetESP, function(s)
+        TargetESPVariables.enabled = s
+    end)
+    self:CreateToggle(targetEsp, 'Rainbow Mode', TargetESPVariables.rainbow, function(s)
+        TargetESPVariables.rainbow = s
+    end)
+    self:CreateSlider(targetEsp, 'ESP Size', 20, 100, TargetESPVariables.size, function(v)
+        TargetESPVariables.size = v
+    end)
+    self:CreateSlider(targetEsp, 'Max Radius', 10, 150, TargetESPVariables.maxRadius, function(v)
+        TargetESPVariables.maxRadius = v
+    end)
+    self:CreateColorPicker(targetEsp, 'Target ESP Color', TargetESPVariables.color, function(c)
+        TargetESPVariables.color = c
+    end)
+
+    local arrowEsp = self:CreateSection('Player — Arrow ESP')
+    self:CreateToggle(arrowEsp, 'Enable Arrow ESP', Config.Settings.ESP.ArrowESP, function(s)
+        ArrowESPVariables.enabled = s
+    end)
+    self:CreateToggle(arrowEsp, 'Rainbow Mode', ArrowESPVariables.rainbow, function(s)
+        ArrowESPVariables.rainbow = s
+    end)
+    self:CreateSlider(arrowEsp, 'Distance from Center', 50, 150, ArrowESPVariables.distance, function(v)
+        ArrowESPVariables.distance = v
+    end)
+    self:CreateColorPicker(arrowEsp, 'Arrow Color', ArrowESPVariables.color, function(c)
+        ArrowESPVariables.color = c
+    end)
+
+    local hatSec = self:CreateSection('Player — Chinese Hat')
+    self:CreateToggle(hatSec, 'Enable Hat', false, function(s)
+        Hat_ToggleEnabled(s)
+    end)
+    self:CreateDropdown(hatSec, 'Hat Style', { 'Classic', 'Drawing' }, 'Classic', function(v)
+        Hat_ChangeStyle(v)
+    end)
+    self:CreateToggle(hatSec, 'Rainbow Mode', false, function(s)
+        HatVariables.rainbow = s
+    end)
+    self:CreateSlider(hatSec, 'Rainbow Speed', 1, 20, 5, function(v)
+        HatVariables.rainbowSpeed = v
+    end)
+    self:CreateSlider(hatSec, 'Transparency', 0, 100, 30, function(v)
+        HatVariables.transparency = v / 100
+    end)
+    self:CreateSlider(hatSec, 'Radius', 5, 100, 24, function(v)
+        HatVariables.radius = v / 10
+    end)
+    self:CreateSlider(hatSec, 'Height', 5, 50, 16, function(v)
+        HatVariables.height = v / 10
+    end)
+    self:CreateColorPicker(hatSec, 'Hat Color', HatVariables.color, function(c)
+        HatVariables.color = c
+    end)
+
+    local trailSec = self:CreateSection('Player — Trail')
+    self:CreateToggle(trailSec, 'Enable Trail', false, function(s)
+        Trail_ToggleEnabled(s)
+    end)
+    self:CreateToggle(trailSec, 'Gradient Mode', false, function(s)
+        TrailVariables.isGradient = s
+        if TrailVariables.enabled and LocalPlayer.Character then
+            Trail_AddToCharacter(LocalPlayer.Character)
+        end
+    end)
+    self:CreateSlider(trailSec, 'Lifetime', 1, 30, 5, function(v)
+        TrailVariables.lifetime = v / 10
+        Trail_UpdateAll()
+    end)
+    self:CreateToggle(trailSec, 'Rainbow', false, function(s)
+        TrailVariables.rainbow = s
+        Trail_UpdateAll()
+    end)
+    self:CreateColorPicker(trailSec, 'Static Color', TrailVariables.colorStatic, function(c)
+        TrailVariables.colorStatic = c
+        Trail_UpdateAll()
+    end)
+
+    local ffSec = self:CreateSection('Player — ForceField')
+    self:CreateToggle(ffSec, 'Enable ForceField', false, function(s)
+        ForceField_ToggleEnabled(s)
+    end)
+    self:CreateToggle(ffSec, 'Rainbow Mode', false, function(s)
+        ForceFieldVariables.rainbow = s
+        ForceField_Update()
+    end)
+    self:CreateColorPicker(ffSec, 'ForceField Color', ForceFieldVariables.color, function(c)
+        ForceFieldVariables.color = c
+        if ForceFieldVariables.enabled then
+            ForceField_Apply(LocalPlayer.Character)
+        end
+    end)
+
+local auraSec = self:CreateSection('Player — Aura Trailer')
+    self:CreateToggle(auraSec, 'Enable Aura Trailer', false, function(s)
+        AuraTrailer_Toggle(s)
+    end)
+    self:CreateColorPicker(auraSec, 'Aura Color', AuraTrailerVariables.color, function(c)
+        AuraTrailerVariables.color = c
+        if AuraTrailerVariables.enabled then
+            AuraTrailer_Update()
+        end
+    end)
+    self:CreateSlider(auraSec, 'Lifetime', 1, 30, 5, function(v)
+        AuraTrailerVariables.lifetime = v / 10
+        if AuraTrailerVariables.enabled then
+            AuraTrailer_Update()
+        end
+    end)
+
+    local modelsSec = self:CreateSection('Models')
+    
+    local SahurikVars = {
+        enabled = false,
+        modelId = "138151705692565",
+        attached = false,
+        connection = nil,
+    }
+    
+    local function ApplySahurik(char)
+        if not char then return end
+        local root = char:WaitForChild("HumanoidRootPart", 5)
+        if not root then return end
+        local success, result = pcall(function()
+            return game:GetObjects("rbxassetid://" .. SahurikVars.modelId)[1]
+        end)
+        if success and result then
+            local old = char:FindFirstChild("SahurikModel")
+            if old then old:Destroy() end
+            for _, v in pairs(char:GetChildren()) do
+                if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+                    v.Transparency = 1
+                elseif v:IsA("Accessory") and v:FindFirstChild("Handle") then
+                    v.Handle.Transparency = 1
+                end
+            end
+            result.Name = "SahurikModel"
+            result.Parent = char
+            local targetPart = result:IsA("BasePart") and result or result:FindFirstChildWhichIsA("BasePart")
+            if targetPart then
+                local weld = Instance.new("Weld")
+                weld.Part0 = root
+                weld.Part1 = targetPart
+                weld.C0 = CFrame.new(0, 0, 0)
+                weld.Parent = targetPart
+                SahurikVars.attached = true
+            end
+        end
+    end
+    
+    local function RemoveSahurik(char)
+        if not char then return end
+        local model = char:FindFirstChild("SahurikModel")
+        if model then model:Destroy() end
+        for _, v in pairs(char:GetChildren()) do
+            if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+                v.Transparency = 0
+            elseif v:IsA("Accessory") and v:FindFirstChild("Handle") then
+                v.Handle.Transparency = 0
+            end
+        end
+        SahurikVars.attached = false
+    end
+    
+    self:CreateToggle(modelsSec, 'Sahur Model', false, function(s)
+        SahurikVars.enabled = s
+        local char = LocalPlayer.Character
+        if s then
+            if char then ApplySahurik(char) end
+            if not SahurikVars.connection then
+                SahurikVars.connection = LocalPlayer.CharacterAdded:Connect(function(newChar)
+                    task.wait(1)
+                    if SahurikVars.enabled then ApplySahurik(newChar) end
+                end)
+            end
+        else
+            if char then RemoveSahurik(char) end
+            if SahurikVars.connection then
+                SahurikVars.connection:Disconnect()
+                SahurikVars.connection = nil
+            end
+        end
+    end)
+    
+    self:CreateButton(modelsSec, 'Apply Model Now', function()
+        local char = LocalPlayer.Character
+        if char and SahurikVars.enabled then
+            RemoveSahurik(char)
+            task.wait(0.1)
+            ApplySahurik(char)
+        end
+    end)
+    
+    self:CreateButton(modelsSec, 'Remove Model', function()
+        local char = LocalPlayer.Character
+        if char then RemoveSahurik(char) end
+        SahurikVars.enabled = false
+        if SahurikVars.connection then
+            SahurikVars.connection:Disconnect()
+            SahurikVars.connection = nil
+        end
+    end)
+    
+    self:CreateLabel(modelsSec, 'Model Status', 'Ready')
+
+    local hitsoundSec = self:CreateSection('HitSound')
+    
+    local gunshotOptions = { "None" }
+    for name in pairs(HitsoundData.gunshotSounds) do
+        table.insert(gunshotOptions, name)
+    end
+    table.sort(gunshotOptions)
+
+    local knifeOptions = { "None" }
+    for name in pairs(HitsoundData.knifeKillSounds) do
+        table.insert(knifeOptions, name)
+    end
+    table.sort(knifeOptions)
+
+    self:CreateDropdown(hitsoundSec, 'Gunshot Sound', gunshotOptions, HitsoundData.selectedGunshot, function(sound)
+        HitsoundData.selectedGunshot = sound == "None" and nil or sound
+    end)
+
+    self:CreateButton(hitsoundSec, '🔊 Preview Gunshot', function()
+        if HitsoundData.selectedGunshot and HitsoundData.selectedGunshot ~= "None" and HitsoundData.gunshotSounds[HitsoundData.selectedGunshot] then
+            local previewSound = Instance.new("Sound")
+            previewSound.SoundId = HitsoundData.gunshotSounds[HitsoundData.selectedGunshot]
+            previewSound.Volume = 0.5
+            previewSound.Parent = SoundService
+            previewSound:Play()
+            game:GetService("Debris"):AddItem(previewSound, 3)
+        end
+    end)
+
+    self:CreateDropdown(hitsoundSec, 'Knife Kill Sound', knifeOptions, HitsoundData.selectedKnifeKill, function(sound)
+        HitsoundData.selectedKnifeKill = sound == "None" and nil or sound
+    end)
+
+    self:CreateButton(hitsoundSec, '🔊 Preview Knife Kill', function()
+        if HitsoundData.selectedKnifeKill and HitsoundData.selectedKnifeKill ~= "None" and HitsoundData.knifeKillSounds[HitsoundData.selectedKnifeKill] then
+            local previewSound = Instance.new("Sound")
+            previewSound.SoundId = HitsoundData.knifeKillSounds[HitsoundData.selectedKnifeKill]
+            previewSound.Volume = 0.5
+            previewSound.Parent = SoundService
+            previewSound:Play()
+            game:GetService("Debris"):AddItem(previewSound, 3)
+        end
+    end)
+
+    self:CreateButton(hitsoundSec, '🗑️ Clear Selection', function()
+        HitsoundData.selectedGunshot = "None"
+        HitsoundData.selectedKnifeKill = "None"
+        self:LoadTab('Visuals')
+    end)
+
+    local skySec = self:CreateSection('World — Skybox')
+    local skyList = {}
+    for k in pairs(SkyboxAssets) do
+        table.insert(skyList, k)
+    end
+    table.sort(skyList)
+    self:CreateDropdown(skySec, 'Select Skybox', skyList, 'HD', function(v)
+        SkyboxVariables.current = v
+        if SkyboxVariables.customEnabled then
+            Skybox_Apply(v)
+        end
+    end)
+    self:CreateToggle(skySec, 'Enable Skybox', false, function(s)
+        SkyboxVariables.customEnabled = s
+        if s then
+            Skybox_Apply(SkyboxVariables.current)
+        else
+            Skybox_RestoreDefault()
+        end
+    end)
+
+    local lightSec = self:CreateSection('World — Lighting')
+    self:CreateToggle(lightSec, 'Time Changer', false, function(s)
+        WorldVariables.timeEnabled = s
+    end)
+    self:CreateSlider(lightSec, 'Time (0-24)', 0, 24, 12, function(v)
+        WorldVariables.timeValue = v
+    end)
+    self:CreateToggle(lightSec, 'Full Bright', false, function(s)
+        WorldVariables.fullBrightEnabled = s
+        if not s then
+            Lighting.Brightness = defaultLighting.Brightness
+            Lighting.GlobalShadows = defaultLighting.GlobalShadows
+            Lighting.OutdoorAmbient = defaultLighting.OutdoorAmbient
+        end
+    end)
+
+    local nebulaSec = self:CreateSection('World — Nebula')
+    self:CreateToggle(nebulaSec, 'Enable Nebula', false, function(s)
+        NebulaVariables.enabled = s
+        if s then
+            Nebula_Enable()
+        else
+            Nebula_Disable()
+        end
+    end)
+    self:CreateColorPicker(nebulaSec, 'Nebula Color', NebulaVariables.themeColor, function(c)
+        NebulaVariables.themeColor = c
+        Nebula_UpdateColor()
+    end)
+
+    local screenSec = self:CreateSection('World — Screen Effect')
+    self:CreateToggle(screenSec, 'Enable Screen Stretch', false, function(s)
+        Screen_Toggle(s)
+    end)
+    self:CreateSlider(screenSec, 'Stretch Intensity', 0, 20, 0, function(v)
+        WorldVariables.screenIntensity = v / 100
+    end)
+
+    local utilSec = self:CreateSection('World — Utilities')
+    self:CreateToggle(utilSec, 'Anime Image', false, function(s)
+        Anime_Toggle(s)
+    end)
+    local espSec = self:CreateSection('ESP Settings')
+    self:CreateToggle(espSec, 'Enable ESP', false, function(s)
+        ToggleESP(s)
+    end)
+    self:CreateToggle(espSec, 'Show Murderer', true, function(s)
+        ToggleMurderer(s)
+    end)
+    self:CreateToggle(espSec, 'Show Sheriff', true, function(s)
+        ToggleSheriff(s)
+    end)
+    self:CreateToggle(espSec, 'Show Hero', true, function(s)
+        ToggleHero(s)
+    end)
+    self:CreateToggle(espSec, 'Show Innocent', true, function(s)
+        ToggleInnocent(s)
+    end)
+    self:CreateToggle(espSec, 'Show Self', true, function(s)
+        ToggleSelf(s)
+    end)
+    self:CreateColorPicker(espSec, 'Murderer Color', ESP.Colors.Murderer, function(c)
+        SetMurdererColor(c)
+    end)
+    self:CreateColorPicker(espSec, 'Sheriff Color', ESP.Colors.Sheriff, function(c)
+        SetSheriffColor(c)
+    end)
+    self:CreateColorPicker(espSec, 'Hero Color', ESP.Colors.Hero, function(c)
+        SetHeroColor(c)
+    end)
+    self:CreateColorPicker(espSec, 'Innocent Color', ESP.Colors.Innocent, function(c)
+        SetInnocentColor(c)
+    end)
+
+    local tracerSec = self:CreateSection('Tracers')
+    self:CreateToggle(tracerSec, 'Enable Tracers', false, function(s)
+        ToggleTracers(s)
+    end)
+    self:CreateSlider(tracerSec, 'Thickness', 1, 5, 1, function(v)
+        TracerVariables.thickness = v
+    end)
+    self:CreateToggle(tracerSec, 'Only Visible', false, function(s)
+        TracerVariables.onlyVisible = s
+    end)
+    self:CreateColorPicker(tracerSec, 'Tracer Color', TracerVariables.color, function(c)
+        TracerVariables.color = c
+    end)
+    self:CreateToggle(tracerSec, 'Only Visible', false, function(s)
+        TracerVariables.onlyVisible = s
+    end)
+    self:CreateColorPicker(tracerSec, 'Tracer Color', TracerVariables.color, function(c)
+        TracerVariables.color = c
+    end)
+
+    -- ===== GUN BEAM =====
+    local beamSec = self:CreateSection('Gun Beam')
+    self:CreateToggle(beamSec, 'Enable Gun Beam', false, function(s)
+        ToggleGunBeam(s)
+    end)
+    self:CreateDropdown(beamSec, 'Beam Type', {'Default', 'Neon Fat'}, 'Neon Fat', function(v)
+        SetGunBeamType(v)
+    end)
+    self:CreateColorPicker(beamSec, 'Beam Color', GunBeamSettings.beamColor, function(c)
+        SetGunBeamColor(c)
+    end)
+    self:CreateSlider(beamSec, 'Thickness', 0.5, 5, 1.5, function(v)
+        GunBeamSettings.thickness = v
+    end)
+    self:CreateSlider(beamSec, 'Lifetime', 0.1, 1, 0.25, function(v)
+        GunBeamSettings.lifetime = v
+    end)
+end
+end
+
 function GUI:CreateCombatTab()
     local camlock = self:CreateSection('Camlock Aim')
     self:CreateToggle(camlock, 'Camlock Aim', Config.Settings.Combat.Camlock, function(s)
@@ -4556,13 +5067,6 @@ function GUI:CreateCombatTab()
         executeBombJump()
     end)
 
-    -- ===== WALL BANG SECTION =====
-    local wallBangSec = self:CreateSection('Wall Bang')
-    self:CreateToggle(wallBangSec, 'Enable Wall Bang', false, function(s)
-        WallBangSettings.enabled = s
-    end)
-    self:CreateLabel(wallBangSec, 'Status', 'Works with Auto Shoot & Shoot Murderer')
-
     local otherSec = self:CreateSection('Other')
     self:CreateToggle(otherSec, 'Anti Fling', Config.Settings.Combat.AntiFling, function(s)
         Config.Settings.Combat.AntiFling = s
@@ -4581,14 +5085,22 @@ function GUI:CreateCombatTab()
     self:CreateToggle(otherSec, 'Grab Gun', Config.Settings.Combat.GrabGun, function(s)
         Config.Settings.Combat.GrabGun = s
     end)
-end  -- <-- ЭТОТ end ЗАКРЫВАЕТ ВСЮ ФУНКЦИЮ
-
-    -- ===== WALL BANG SECTION =====
-    local wallBangSec = self:CreateSection('Wall Bang')
-    self:CreateToggle(wallBangSec, 'Enable Wall Bang', false, function(s)
+  -- ===== WALL BANG =====
+    local wallSec = self:CreateSection('Wall Bang')
+    self:CreateToggle(wallSec, 'Enable Wall Bang', false, function(s)
         WallBangSettings.enabled = s
     end)
-    self:CreateLabel(wallBangSec, 'Status', 'Works with Auto Shoot & Shoot Murderer')
+    self:CreateButton(wallSec, 'Wall Bang Now', function()
+        WallBangShoot()
+    end)
+    self:CreateToggle(wallSec, 'Show Wall Bang Button', false, function(s)
+        if s then
+            CreateWallBangButton()
+        else
+            RemoveWallBangButton()
+        end
+    end)
+end
 
 function GUI:CreateRageTab()
     local rage = self:CreateSection('Rage Features')
