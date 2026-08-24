@@ -1055,7 +1055,7 @@ local TargetESPVariables = {
     enabled = false,
     size = 45,
     maxRadius = 50,
-    asset = "rbxassetid://113363639205880",
+    asset = "rbxassetid://6031098373",
     color = Color3.fromRGB(255, 70, 90),
     rainbow = false,
     rotation = 0,
@@ -1302,7 +1302,6 @@ local TracerVariables = {
 }
 
 local function Tracer_Update()
-    -- Удаляем старые трассеры
     for _, tracer in pairs(TracerVariables.tracers) do
         tracer:Remove()
     end
@@ -1325,7 +1324,6 @@ local function Tracer_Update()
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
         if not targetHRP or not hum or hum.Health <= 0 then continue end
         
-        -- Проверка видимости
         if TracerVariables.onlyVisible then
             local origin2 = camera.CFrame.Position
             local direction = (targetHRP.Position - origin2)
@@ -1353,7 +1351,6 @@ local function Tracer_Update()
     end
 end
 
--- Обновление трассеров
 RunService.RenderStepped:Connect(function()
     Tracer_Update()
 end)
@@ -1430,7 +1427,6 @@ local function GunBeam_Handle(beam)
         })
         CreateBeam(p0, p1, color, 1.0, lifetime)
     else
-        -- Default
         beam.Width0 = 0.5
         beam.Width1 = 0.3
         beam.Color = ColorSequence.new(color)
@@ -1861,16 +1857,6 @@ function WallBangShoot()
     return success
 end
 
--- Переопределяем shootMurdererDirect для поддержки Wall Bang
-local oldShootMurderer = shootMurdererDirect
-shootMurdererDirect = function()
-    if WallBangSettings.enabled then
-        WallBangShoot()
-    else
-        oldShootMurderer()
-    end
-end
-
 -- Экранная кнопка для Wall Bang
 local WallBangButtonGui = nil
 
@@ -2220,9 +2206,6 @@ local mobileButtons = {}
 local flyEnabled = false
 local flyConn = nil
 
-local flyEnabled = false
-local flyConn = nil
-
 local function setFly(state)
     local char = LocalPlayer.Character
     if not char then return end
@@ -2240,57 +2223,6 @@ local function setFly(state)
         for _, anim in ipairs(hum:GetPlayingAnimationTracks()) do
             anim:Stop()
         end
-        
-        local gyro = Instance.new("BodyGyro")
-        gyro.P = 90000
-        gyro.MaxTorque = Vector3.new(1, 1, 1) * 1e999
-        gyro.CFrame = camera.CFrame
-        gyro.Name = "_FlyGyro"
-        gyro.Parent = hrp
-        
-        local velocity = Instance.new("BodyVelocity")
-        velocity.MaxForce = Vector3.new(1, 1, 1) * 1e999
-        velocity.Velocity = Vector3.zero
-        velocity.Name = "_FlyVelocity"
-        velocity.Parent = hrp
-        
-        if flyConn then flyConn:Disconnect() end
-        flyConn = RunService.RenderStepped:Connect(function()
-            if not flyEnabled or not hrp.Parent then return end
-            local moveDirection = hum.MoveDirection
-            local camCFrame = camera.CFrame
-            local forward = camCFrame.LookVector
-            forward = Vector3.new(forward.X, 0, forward.Z).Unit
-            local right = camCFrame.RightVector
-            right = Vector3.new(right.X, 0, right.Z).Unit
-            local moveVector = (right * moveDirection.X + forward * -moveDirection.Z) * 90
-            local vel = hrp:FindFirstChild("_FlyVelocity")
-            if vel then
-                vel.Velocity = moveVector
-            end
-            local gyro2 = hrp:FindFirstChild("_FlyGyro")
-            if gyro2 then
-                gyro2.CFrame = camCFrame
-            end
-        end)
-    else
-        flyEnabled = false
-        if flyConn then
-            flyConn:Disconnect()
-            flyConn = nil
-        end
-        if hrp:FindFirstChild("_FlyGyro") then
-            hrp._FlyGyro:Destroy()
-        end
-        if hrp:FindFirstChild("_FlyVelocity") then
-            hrp._FlyVelocity:Destroy()
-        end
-        hum.PlatformStand = false
-        if char:FindFirstChild("Animate") then
-            char.Animate.Disabled = false
-        end
-    end
-end
         
         local gyro = Instance.new("BodyGyro")
         gyro.P = 90000
@@ -4709,7 +4641,7 @@ function GUI:CreateVisualsTab()
         end
     end)
 
-local auraSec = self:CreateSection('Player — Aura Trailer')
+    local auraSec = self:CreateSection('Player — Aura Trailer')
     self:CreateToggle(auraSec, 'Enable Aura Trailer', false, function(s)
         AuraTrailer_Toggle(s)
     end)
@@ -4973,17 +4905,11 @@ local auraSec = self:CreateSection('Player — Aura Trailer')
     self:CreateSlider(tracerSec, 'Thickness', 1, 5, 1, function(v)
         TracerVariables.thickness = v
     end)
-    self:CreateToggle(tracerSec, 'Only Visible', false, function(s)
-        TracerVariables.onlyVisible = s
-    end)
     self:CreateColorPicker(tracerSec, 'Tracer Color', TracerVariables.color, function(c)
         TracerVariables.color = c
     end)
     self:CreateToggle(tracerSec, 'Only Visible', false, function(s)
         TracerVariables.onlyVisible = s
-    end)
-    self:CreateColorPicker(tracerSec, 'Tracer Color', TracerVariables.color, function(c)
-        TracerVariables.color = c
     end)
 
     -- ===== GUN BEAM =====
@@ -5003,7 +4929,6 @@ local auraSec = self:CreateSection('Player — Aura Trailer')
     self:CreateSlider(beamSec, 'Lifetime', 0.1, 1, 0.25, function(v)
         GunBeamSettings.lifetime = v
     end)
-end
 end
 
 function GUI:CreateCombatTab()
@@ -5085,7 +5010,7 @@ function GUI:CreateCombatTab()
     self:CreateToggle(otherSec, 'Grab Gun', Config.Settings.Combat.GrabGun, function(s)
         Config.Settings.Combat.GrabGun = s
     end)
-  -- ===== WALL BANG =====
+    -- ===== WALL BANG =====
     local wallSec = self:CreateSection('Wall Bang')
     self:CreateToggle(wallSec, 'Enable Wall Bang', false, function(s)
         WallBangSettings.enabled = s
@@ -5482,7 +5407,6 @@ print('\u{1f464} Developer: ' .. Config.Developer)
 print('\u{1f4ac} Discord: ' .. Config.Discord)
 print('\u{2328}\u{fe0f} Toggle: RightShift | Panic: End')
 print('\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}')
-
 
 -- Load saved config on startup
 task.wait(0.5)
