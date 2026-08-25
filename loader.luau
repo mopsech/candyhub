@@ -5026,6 +5026,7 @@ function GUI:CreateCombatTab()
     self:CreateToggle(otherSec, 'Grab Gun', Config.Settings.Combat.GrabGun, function(s)
         Config.Settings.Combat.GrabGun = s
     end)
+end
 
 
 function GUI:CreateRageTab()
