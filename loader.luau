@@ -2566,36 +2566,73 @@ end
 
 local function shootMurdererDirect()
     local char = LocalPlayer.Character
-    if not char then
-        return
-    end
+    if not char then return end
+    
     local gun = char:FindFirstChild('Gun') or char:FindFirstChild('Revolver')
     if not gun then
         local bp = LocalPlayer:FindFirstChild('Backpack')
         gun = bp and (bp:FindFirstChild('Gun') or bp:FindFirstChild('Revolver'))
     end
-    if not gun then
-        return
-    end
+    if not gun then return end
+    
     local m = getMurderer()
-    if m and m.Character and m.Character:FindFirstChild('HumanoidRootPart') then
-        local mRoot = m.Character.HumanoidRootPart
-        -- Пытаемся использовать Wall Bang (стрельба сквозь стены с предсказанием)
-        local targetPos = getpredictedpos(mRoot)
-        local success = false
-        pcall(function()
-            local shootRemote = gun:FindFirstChild('Shoot')
-            if shootRemote then
-                local root = char:FindFirstChild("HumanoidRootPart")
-                local cf = CFrame.new(targetPos)
-                shootRemote:FireServer(cf, CFrame.new(root and root.Position or char:GetPivot().Position))
-                success = true
-            end
-        end)
-        -- Если Wall Bang не сработал, стреляем обычным способом
-        if not success then
-            fireGun(gun, mRoot.Position)
+    if not m or not m.Character then return end
+    
+    local mTorso = m.Character:FindFirstChild('UpperTorso') or 
+                   m.Character:FindFirstChild('Torso') or 
+                   m.Character:FindFirstChild('HumanoidRootPart')
+    if not mTorso then return end
+    
+    local root = char:FindFirstChild('HumanoidRootPart')
+    if not root then return end
+    
+    -- Экипируем пушку
+    if gun.Parent == LocalPlayer:FindFirstChild('Backpack') then
+        local hum = char:FindFirstChildOfClass('Humanoid')
+        if hum then
+            hum:EquipTool(gun)
+            task.wait(0.05)
         end
+    end
+    
+    -- Проверяем стену
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {char, m.Character}
+    raycastParams.IgnoreWater = true
+    
+    local result = workspace:Raycast(root.Position, (mTorso.Position - root.Position), raycastParams)
+    
+    local shootPos
+    if result then
+        -- ЕСТЬ СТЕНА - Wall Bang с предиктом
+        local dist = (mTorso.Position - root.Position).Magnitude
+        local predTime = math.clamp(dist / 250 + (LocalPlayer:GetNetworkPing() or 0) * 0.5, 0.01, 0.3)
+        local vel = mTorso.AssemblyLinearVelocity
+        
+        local hum = m.Character:FindFirstChildOfClass('Humanoid')
+        if hum then
+            local state = hum:GetState()
+            if state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Jumping then
+                vel = Vector3.new(vel.X, vel.Y * 0.35, vel.Z)
+            end
+        end
+        
+        shootPos = mTorso.Position + vel * predTime
+    else
+        -- НЕТ СТЕНЫ - стреляем прямо
+        shootPos = mTorso.Position
+    end
+    
+    -- Стреляем
+    local shootRemote = gun:FindFirstChild('Shoot')
+    if shootRemote then
+        local origin = root.Position + Vector3.new(0, 1, 0)
+        pcall(function()
+            shootRemote:FireServer(CFrame.new(origin, shootPos), CFrame.new(shootPos))
+        end)
+    else
+        fireGun(gun, shootPos)
     end
 end
 
