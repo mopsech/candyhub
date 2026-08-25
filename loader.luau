@@ -2586,16 +2586,17 @@ local function shootMurdererDirect()
     local root = char:FindFirstChild('HumanoidRootPart')
     if not root then return end
     
-    -- Экипируем пушку
+    -- Экипируем пушку если надо
     if gun.Parent == LocalPlayer:FindFirstChild('Backpack') then
         local hum = char:FindFirstChildOfClass('Humanoid')
         if hum then
             hum:EquipTool(gun)
-            task.wait(0.05)
+            task.wait(0)
         end
     end
     
-    -- Проверяем стену
+    -- ===== ЛОГИКА ИЗ ТВОЕГО u97 =====
+    -- Проверяем видимость
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
     raycastParams.FilterDescendantsInstances = {char, m.Character}
@@ -2605,11 +2606,20 @@ local function shootMurdererDirect()
     
     local shootPos
     if result then
-        -- ЕСТЬ СТЕНА - Wall Bang с предиктом
-        local dist = (mTorso.Position - root.Position).Magnitude
-        local predTime = math.clamp(dist / 250 + (LocalPlayer:GetNetworkPing() or 0) * 0.5, 0.01, 0.3)
-        local vel = mTorso.AssemblyLinearVelocity
+        -- ЕСТЬ СТЕНА - используем predTime как в твоем коде
+        local Position = mTorso.Position
+        local predTime = (Position - root.Position).Magnitude / 250
         
+        if _G.PingPrediction then
+            local ok, ping = pcall(function()
+                return LocalPlayer:GetNetworkPing()
+            end)
+            if ok and ping then
+                predTime = predTime + ping * 0.5
+            end
+        end
+        
+        local vel = mTorso.AssemblyLinearVelocity
         local hum = m.Character:FindFirstChildOfClass('Humanoid')
         if hum then
             local state = hum:GetState()
@@ -2618,7 +2628,7 @@ local function shootMurdererDirect()
             end
         end
         
-        shootPos = mTorso.Position + vel * predTime
+        shootPos = Position + vel * predTime
     else
         -- НЕТ СТЕНЫ - стреляем прямо
         shootPos = mTorso.Position
