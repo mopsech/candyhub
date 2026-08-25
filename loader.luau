@@ -2579,7 +2579,23 @@ local function shootMurdererDirect()
     end
     local m = getMurderer()
     if m and m.Character and m.Character:FindFirstChild('HumanoidRootPart') then
-        fireGun(gun, m.Character.HumanoidRootPart.Position)
+        local mRoot = m.Character.HumanoidRootPart
+        -- Пытаемся использовать Wall Bang (стрельба сквозь стены с предсказанием)
+        local targetPos = getpredictedpos(mRoot)
+        local success = false
+        pcall(function()
+            local shootRemote = gun:FindFirstChild('Shoot')
+            if shootRemote then
+                local root = char:FindFirstChild("HumanoidRootPart")
+                local cf = CFrame.new(targetPos)
+                shootRemote:FireServer(cf, CFrame.new(root and root.Position or char:GetPivot().Position))
+                success = true
+            end
+        end)
+        -- Если Wall Bang не сработал, стреляем обычным способом
+        if not success then
+            fireGun(gun, mRoot.Position)
+        end
     end
 end
 
@@ -5010,22 +5026,7 @@ function GUI:CreateCombatTab()
     self:CreateToggle(otherSec, 'Grab Gun', Config.Settings.Combat.GrabGun, function(s)
         Config.Settings.Combat.GrabGun = s
     end)
-    -- ===== WALL BANG =====
-    local wallSec = self:CreateSection('Wall Bang')
-    self:CreateToggle(wallSec, 'Enable Wall Bang', false, function(s)
-        WallBangSettings.enabled = s
-    end)
-    self:CreateButton(wallSec, 'Wall Bang Now', function()
-        WallBangShoot()
-    end)
-    self:CreateToggle(wallSec, 'Show Wall Bang Button', false, function(s)
-        if s then
-            CreateWallBangButton()
-        else
-            RemoveWallBangButton()
-        end
-    end)
-end
+
 
 function GUI:CreateRageTab()
     local rage = self:CreateSection('Rage Features')
