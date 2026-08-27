@@ -6402,16 +6402,16 @@ end
 local VaultLogo = NeverLose.GlobalLogo
 
 pcall(function()
-    local logoUrl = 'https://raw.githubusercontent.com/Be1for/main/refs/heads/main/pV.png'
+    local logoUrl = 'https://raw.githubusercontent.com/mopsech/candyhub/main/candy.png'
     local data = game:HttpGet(logoUrl)
 
     if writefile then
-        writefile('ProjectVault_Logo.png', data)
+        writefile('candy_logo.png', data)   -- меняем имя файла
     end
     if getcustomasset then
-        VaultLogo = getcustomasset('ProjectVault_Logo.png')
-    elseif getcustomasset and isfile and isfile('ProjectVault_Logo.png') then
-        VaultLogo = getcustomasset('ProjectVault_Logo.png')
+        VaultLogo = getcustomasset('candy_logo.png')
+    elseif getcustomasset and isfile and isfile('candy_logo.png') then
+        VaultLogo = getcustomasset('candy_logo.png')
     end
 end)
 
