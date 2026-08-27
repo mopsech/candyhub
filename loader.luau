@@ -3530,7 +3530,7 @@ end
 function Hub.ChatRoles()
     local murd = Hub.FindMurderer()
     local sher = Hub.FindSheriff()
-    local msg = 'project vault >> Murderer: ' .. (murd and murd.Name or 'Unknown') .. ' | Sheriff: ' .. (sher and sher.Name or 'Unknown')
+    local msg = 'Candy Ware >> Murderer: ' .. (murd and murd.Name or 'Unknown') .. ' | Sheriff: ' .. (sher and sher.Name or 'Unknown')
 
     if TextChatService and TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
         local channels = TextChatService:FindFirstChild('TextChannels')
@@ -6304,7 +6304,7 @@ local Logging = NeverLose:CreateLogger()
 local Library = {
     Notify = function(_, opts)
         Notification.new({
-            Title = opts.Title or 'Project Vault',
+            Title = opts.Title or 'Candy Ware',
             Content = opts.Description or opts.Content or '',
             Duration = opts.Time or 5,
         })
@@ -6417,10 +6417,10 @@ end)
 
 local Window = NeverLose:CreateWindow({
     Logo = VaultLogo,
-    Name = 'Project Vault',
-    Content = 'discord.gg/we dont have discord(',
+    Name = 'Candy Ware',
+    Content = 'discord.gg/3daeHMjgsQ',
     Size = NeverLose.Scales.Default,
-    ConfigFolder = 'ProjectVault',
+    ConfigFolder = 'candycfg',
     Enable3DRenderer = false,
     Keybind = 'LeftControl',
 })
@@ -6430,8 +6430,8 @@ pcall(function()
     local rawIsfile = nil
 
     if rawDelfile then
-        pcall(rawDelfile, 'ProjectVault/Default')
-        pcall(rawDelfile, 'ProjectVault/Default')
+        pcall(rawDelfile, 'candycfg/Default')
+        pcall(rawDelfile, 'candycfg/Default')
     end
 end)
 task.spawn(function()
@@ -6441,13 +6441,13 @@ task.spawn(function()
         task.wait(0.4)
 
         if rawDelfile then
-            pcall(rawDelfile, 'ProjectVault/Default')
-            pcall(rawDelfile, 'ProjectVault/Default')
+            pcall(rawDelfile, 'candycfg/Default')
+            pcall(rawDelfile, 'candycfg/Default')
         end
     end
 end)
 Notification.new({
-    Title = 'Project Vault',
+    Title = 'Candy Ware',
     Content = 'Loaded successfully',
     Duration = 5,
 })
@@ -7023,7 +7023,7 @@ do
         if mm2MeshesRunning then
             pcall(function()
                 Notification.new({
-                    Title = 'Project Vault',
+                    Title = 'Candy Ware',
                     Content = 'Weapon meshes already running',
                     Duration = 3,
                 })
@@ -7285,7 +7285,7 @@ end]]
 
                 pcall(function()
                     Notification.new({
-                        Title = 'Project Vault',
+                        Title = 'Candy Ware',
                         Content = 'Weapon meshes error: ' .. tostring(err),
                         Duration = 5,
                     })
@@ -7294,7 +7294,7 @@ end]]
         end)
         pcall(function()
             Notification.new({
-                Title = 'Project Vault',
+                Title = 'Candy Ware',
                 Content = 'Weapon meshes started',
                 Duration = 3,
             })
@@ -7727,7 +7727,7 @@ do
         WeaponSize_Tick()
         pcall(function()
             Notification.new({
-                Title = 'Project Vault',
+                Title = 'Candy Ware',
                 Content = 'Knife size: x' .. tostring(WeaponSize.knifeScale) .. ' (session only)',
                 Duration = 2,
             })
@@ -7740,7 +7740,7 @@ do
         WeaponSize_Tick()
         pcall(function()
             Notification.new({
-                Title = 'Project Vault',
+                Title = 'Candy Ware',
                 Content = 'Gun size: x' .. tostring(WeaponSize.gunScale) .. ' (session only)',
                 Duration = 2,
             })
@@ -10001,7 +10001,7 @@ do
         _Reset_ApplyOptionDefaults()
         pcall(function()
             Notification.new({
-                Title = 'Project Vault',
+                Title = 'Candy Ware',
                 Content = 'All settings reset to defaults',
                 Duration = 4,
             })
@@ -10477,7 +10477,7 @@ local function __VisionHub_SetupMenuPanel()
                 applyMenuTheme(v)
                 pcall(function()
                     Notification.new({
-                        Title = 'Project Vault',
+                        Title = 'Candy Ware',
                         Content = 'Theme: ' .. tostring(v),
                         Duration = 2.5,
                     })
@@ -10537,7 +10537,7 @@ local function __VisionHub_SetupMenuPanel()
 
             applyMenuTheme('Custom')
             Notification.new({
-                Title = 'Project Vault',
+                Title = 'Candy Ware',
                 Content = 'Custom accent applied',
                 Duration = 2.5,
             })
@@ -10559,7 +10559,7 @@ local function __VisionHub_SetupMenuPanel()
             end
 
             Notification.new({
-                Title = 'Project Vault',
+                Title = 'Candy Ware',
                 Content = 'Theme reset to Default',
                 Duration = 2.5,
             })
@@ -10584,7 +10584,7 @@ local function __VisionHub_SetupMenuPanel()
             if v then
                 if not wmBlockName then
                     pcall(function()
-                        wmBlockName = wm:AddBlock('cube-vertexes', 'Project Vault')
+                        wmBlockName = wm:AddBlock('cube-vertexes', 'Candy Ware')
 
                         if wmBlockName and wmBlockName.Input then
                             wmBlockName:Input(function()
@@ -10702,7 +10702,7 @@ local function __VisionHub_SetupMenuPanel()
                 end
                 if wmShowName and wmBlockName and wmBlockName.SetText then
                     pcall(function()
-                        wmBlockName:SetText('Project Vault')
+                        wmBlockName:SetText('Candy Ware')
                     end)
                 end
             end
@@ -10760,7 +10760,7 @@ local function __VisionHub_SetupMenuPanel()
         Callback = function()
             applyAccount()
             Notification.new({
-                Title = 'Project Vault',
+                Title = 'Candy Ware',
                 Content = 'Account info refreshed',
                 Duration = 3,
             })
