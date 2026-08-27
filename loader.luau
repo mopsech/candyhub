@@ -5399,19 +5399,13 @@ do
             Config.Settings.Combat.GrabGun = s
         end,
     })
-    sec:AddLabel('Wall Bang'):AddToggle({
-        Default = WallBangSettings.enabled,
-        Flag = 'WallBang',
-        Callback = function(s)
-            WallBangSettings.enabled = s
-
-            if s then
-                CreateWallBangButton()
-            else
-                RemoveWallBangButton()
-            end
-        end,
-    })
+sec:AddLabel('Wall Bang'):AddToggle({
+    Default = Config.Settings.Combat.WallBang,
+    Flag = 'WallBang',
+    Callback = function(s)
+        ToggleWallBang(s)
+    end,
+})
 end
 do
     local sec = RageTab:AddSection({
